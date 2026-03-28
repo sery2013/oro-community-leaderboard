@@ -58,7 +58,7 @@ async def fetch_tweet(session, tweet_info, api_key):
                     twitter_handle = data['user']['screen_name']
                 elif 'author' in data and 'username' in data['author']:
                     twitter_handle = data['author']['username']
-                    
+                
                 return (uid, 
                         data.get('favorite_count', 0), 
                         data.get('views_count', 0), 
@@ -115,7 +115,6 @@ def get_discord_data():
                     uid = m['author']['id']
                     content = m.get('content', '')
                     
-                    # Обработка embeds (для XP)
                     if m.get('embeds'):
                         for embed in m['embeds']:
                             search_text = embed.get('description', '')
@@ -152,7 +151,6 @@ def get_discord_data():
                                     if xp_val > user_stats[target_uid].get("total_score", 0):
                                         user_stats[target_uid]["total_score"] = xp_val
                     
-                    # Инициализация пользователя, если ещё нет
                     if uid not in user_stats:
                         avatar = m['author'].get('avatar')
                         user_stats[uid] = {
@@ -173,18 +171,16 @@ def get_discord_data():
                             "prev_discord_messages": 0
                         }
                     
-                    # Считаем сообщения Discord
                     user_stats[uid]["discord_messages"] += 1
                     user_stats[uid]["channels"].add(tid)
                     
-                    # Собираем ссылки на твиты для последующего запроса к API
                     links = re.findall(r'https?://(?:twitter\.com|x\.com|vxtwitter\.com|fxtwitter\.com)/\w+/status/\d+', content)
                     for l in links:
                         tweet_list.append((uid, l))
                     
                     last_id = m['id']
                     count += 1
-                    
+                
                 if last_id == "STOP":
                     break
                     
@@ -216,7 +212,6 @@ async def main():
     
     supabase = create_client(s_url, s_key)
     
-    # 🔍 Получаем старые данные для сохранения в prev_*
     log("🔍 Загрузка предыдущих данных из Supabase...")
     try:
         response = supabase.table("leaderboard_stats").select("user_id, total_score, discord_messages").execute()
@@ -242,7 +237,6 @@ async def main():
                         users[uid]["twitter_views"] += views
                         users[uid]["twitter_replies"] += replies
                         
-                        # ✅ Обновляем twitter_handle из данных твита (если получен)
                         if twitter_handle:
                             users[uid]["twitter_handle"] = twitter_handle
                             log(f"   ✅ Handle для {uid}: @{twitter_handle}")
@@ -255,7 +249,6 @@ async def main():
         if info.get("total_score", 0) < calc_xp:
             info["total_score"] = calc_xp
         
-        # 🔍 Устанавливаем prev_ поля из старых данных
         old_entry = old_data.get(uid, {})
         info["prev_total_score"] = old_entry.get("total_score", 0)
         info["prev_discord_messages"] = old_entry.get("discord_messages", 0)
