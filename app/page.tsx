@@ -36,10 +36,11 @@ export default function Leaderboard() {
   const downloadCard = async () => {
     const h2c = (window as any).html2canvas;
     if (modalRef.current && h2c) {
+      // ✅ Оптимизация: отключаем тяжёлые эффекты при экспорте
       modalRef.current.classList.add('export-mode');
       
       const canvas = await h2c(modalRef.current, {
-        backgroundColor: '#FFA500', // ✅ Changed for orange theme
+        backgroundColor: '#151515',
         scale: 2,
         useCORS: true,
         logging: false,
@@ -72,6 +73,13 @@ export default function Leaderboard() {
     return number.toString();
   };
 
+  const calculateChange = (current: number, previous: number) => {
+    if (previous === 0) return { diff: current, percent: current > 0 ? 100 : 0 };
+    const diff = current - previous;
+    const percent = (diff / previous) * 100;
+    return { diff, percent };
+  };
+
   const filteredUsers = users.filter((user) => {
     const term = searchQuery.toLowerCase();
     return (
@@ -96,7 +104,7 @@ export default function Leaderboard() {
           justify-content: center;
           align-items: center;
           gap: 20px;
-          background: #FF8C00; /* ✅ Changed */
+          background: #101010;
           color: #fff;
           letter-spacing: 4px;
           font-family: 'Space Grotesk', sans-serif;
@@ -105,7 +113,7 @@ export default function Leaderboard() {
           width: 40px;
           height: 40px;
           border: 2px solid rgba(255,255,255,0.1);
-          border-top-color: #fff;
+          border-top-color: #00f2ff;
           border-radius: 50%;
           animation: spin 1s linear infinite;
         }
@@ -155,6 +163,9 @@ export default function Leaderboard() {
           {filteredUsers.length > 0 ? (
             filteredUsers.map((user, index) => {
               const originalRank = users.findIndex(u => u.user_id === user.user_id) + 1;
+              const xpChange = calculateChange(user.total_score || 0, user.prev_total_score || 0);
+              const msgChange = calculateChange(user.discord_messages || 0, user.prev_discord_messages || 0);
+              
               return (
                 <div
                   key={user.user_id}
@@ -185,12 +196,30 @@ export default function Leaderboard() {
                       
                       <div className="name-box">
                         <div className="username-row">
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#00f2ff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                             <circle cx="12" cy="7" r="4"></circle>
                           </svg>
                           <h2 className="display-name">{user.username}</h2>
                         </div>
+                        
+                        {/* === Индикаторы изменения XP и сообщений === */}
+                        {user.prev_total_score !== undefined && user.prev_discord_messages !== undefined && (
+                          <div className="delta-container" style={{ marginTop: '6px', fontSize: '0.75rem' }}>
+                            <div className="delta-row">
+                              <span className={`value ${xpChange.diff > 0 ? 'positive' : xpChange.diff < 0 ? 'negative' : 'neutral'}`}>
+                                {xpChange.diff > 0 ? '📈' : xpChange.diff < 0 ? '📉' : '→'}{' '}
+                                {xpChange.diff} XP ({(xpChange.percent > 0 ? '+' : '') + xpChange.percent.toFixed(1)}%)
+                              </span>
+                            </div>
+                            <div className="delta-row">
+                              <span className={`value ${msgChange.diff > 0 ? 'positive' : msgChange.diff < 0 ? 'negative' : 'neutral'}`}>
+                                {msgChange.diff > 0 ? '📈' : msgChange.diff < 0 ? '📉' : '→'}{' '}
+                                {msgChange.diff} MSG ({(msgChange.percent > 0 ? '+' : '') + msgChange.percent.toFixed(1)}%)
+                              </span>
+                            </div>
+                          </div>
+                        )}
                         
                         <div className="user-meta">
                           <div className="meta-badge">
@@ -228,7 +257,7 @@ export default function Leaderboard() {
                       <div className="metric-box">
                         <span className="metric-label">DISCORD MESSAGES</span>
                         <div className="stat-row">
-                          <span className="stat-dot-small messages" style={{ background: '#fff', boxShadow: '0 0 5px #fff' }}></span>
+                          <span className="stat-dot-small messages" style={{ background: '#5865F2', boxShadow: '0 0 5px #5865F2' }}></span>
                           <span className="stat-val">{user.discord_messages || 0}</span>
                           <span className="stat-suffix">MSG</span>
                         </div>
@@ -378,8 +407,8 @@ export default function Leaderboard() {
         
         body {
           margin: 0;
-          background: #FF8C00; /* ✅ Changed to orange */
-          color: #fff; /* ✅ White text for contrast */
+          background: #101010;
+          color: #e0e0e0;
           font-family: 'Space Grotesk', sans-serif;
           overflow-x: hidden;
         }
@@ -395,7 +424,7 @@ export default function Leaderboard() {
         .grid-overlay {
           position: fixed;
           top: 0; left: 0; width: 100%; height: 100%;
-          background-image: radial-gradient(rgba(255,255,255,0.1) 1px, transparent 1px);
+          background-image: radial-gradient(rgba(255,255,255,0.02) 1px, transparent 1px);
           background-size: 40px 40px;
           z-index: 0;
           pointer-events: none;
@@ -406,13 +435,13 @@ export default function Leaderboard() {
           width: 800px;
           height: 800px;
           filter: blur(160px);
-          opacity: 0.15;
+          opacity: 0.1;
           z-index: 0;
           pointer-events: none;
         }
         
-        .glow-1 { top: -200px; left: -100px; background: #FFD700; } /* ✅ Gold glow */
-        .glow-2 { bottom: -200px; right: -100px; background: #FF6B35; } /* ✅ Warm orange glow */
+        .glow-1 { top: -200px; left: -100px; background: #00f2ff; }
+        .glow-2 { bottom: -200px; right: -100px; background: #8000ff; }
         
         .main-content {
           width: 100%;
@@ -424,8 +453,8 @@ export default function Leaderboard() {
         
         .branding-banner {
           display: block;
-          border: 1px solid rgba(255,255,255,0.2);
-          background: linear-gradient(90deg, rgba(255,255,255,0.1), transparent);
+          border: 1px solid rgba(255,255,255,0.06);
+          background: linear-gradient(90deg, rgba(255,255,255,0.02), transparent);
           padding: 25px 40px;
           border-radius: 20px;
           backdrop-filter: blur(10px);
@@ -442,9 +471,9 @@ export default function Leaderboard() {
         
         .status-dot {
           width: 8px; height: 8px;
-          background: #fff;
+          background: #00f2ff;
           border-radius: 50%;
-          box-shadow: 0 0 10px #fff;
+          box-shadow: 0 0 10px #00f2ff;
           animation: pulse 2s infinite;
         }
         
@@ -458,19 +487,19 @@ export default function Leaderboard() {
           letter-spacing: 5px;
           margin: 0;
           flex-grow: 1;
-          color: rgba(255, 255, 255, 0.9);
+          color: rgba(255, 255, 255, 0.1);
           background: linear-gradient(
             90deg,
-            #fff 0%,
-            #FFD700 50%,
-            #fff 100%
+            rgba(255,255,255,0.9) 0%,
+            #00f2ff 50%,
+            rgba(255,255,255,0.9) 100%
           );
           background-size: 200% auto;
           -webkit-background-clip: text;
           background-clip: text;
           -webkit-text-fill-color: transparent;
           animation: shine-beam 4s linear infinite;
-          filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.3));
+          filter: drop-shadow(0 0 10px rgba(0, 242, 255, 0.2));
         }
         
         @keyframes shine-beam {
@@ -486,19 +515,19 @@ export default function Leaderboard() {
         }
         
         .update-badge {
-          background: rgba(255, 255, 255, 0.2);
-          color: #fff;
+          background: rgba(0, 242, 255, 0.1);
+          color: #00f2ff;
           padding: 2px 8px;
           border-radius: 4px;
           font-size: 0.6rem;
           font-weight: 700;
-          border: 1px solid rgba(255, 255, 255, 0.3);
+          border: 1px solid rgba(0, 242, 255, 0.2);
         }
         
         .status-label {
           font-size: 0.7rem;
           letter-spacing: 2px;
-          color: rgba(255,255,255,0.8);
+          color: rgba(255,255,255,0.3);
           font-weight: 500;
         }
         
@@ -511,7 +540,7 @@ export default function Leaderboard() {
         .accent-line {
           height: 1px;
           flex-grow: 1;
-          background: linear-gradient(90deg, #fff, rgba(255,255,255,0.3), transparent);
+          background: linear-gradient(90deg, #00f2ff, rgba(128,0,255,0.1), transparent);
         }
         
         .search-wrapper {
@@ -524,13 +553,13 @@ export default function Leaderboard() {
           left: 18px; top: 50%;
           transform: translateY(-50%);
           color: #fff;
-          opacity: 0.7;
+          opacity: 0.5;
         }
         
         .search-input {
           width: 100%;
-          background: rgba(255,255,255,0.1);
-          border: 1px solid rgba(255,255,255,0.3);
+          background: rgba(255,255,255,0.01);
+          border: 1px solid rgba(255,255,255,0.08);
           padding: 16px 20px 16px 55px;
           border-radius: 14px;
           color: #fff;
@@ -539,9 +568,9 @@ export default function Leaderboard() {
         }
         
         .search-input:focus {
-          border-color: rgba(255,255,255,0.6);
+          border-color: rgba(0,242,255,0.4);
           outline: none;
-          box-shadow: 0 0 20px rgba(255,255,255,0.2);
+          box-shadow: 0 0 20px rgba(0,242,255,0.05);
         }
         
         .stats-grid {
@@ -553,8 +582,8 @@ export default function Leaderboard() {
         .contributor-card {
           cursor: pointer;
           display: flex;
-          background: rgba(255, 255, 255, 0.15); /* ✅ More opaque for orange bg */
-          border: 1px solid rgba(255, 255, 255, 0.3);
+          background: rgba(255, 255, 255, 0.02);
+          border: 1px solid rgba(255, 255, 255, 0.04);
           border-radius: 20px;
           overflow: hidden;
           opacity: 0;
@@ -565,13 +594,13 @@ export default function Leaderboard() {
         }
         
         .contributor-card:hover {
-          background: rgba(255, 255, 255, 0.25);
-          border-color: rgba(255, 255, 255, 0.5);
+          background: rgba(255, 255, 255, 0.06);
+          border-color: rgba(0, 242, 255, 0.3);
           transform: translateY(-5px) scale(1.01);
           backdrop-filter: blur(12px);
           box-shadow:
-            0 15px 35px rgba(0, 0, 0, 0.2),
-            0 0 20px rgba(255, 255, 255, 0.2);
+            0 15px 35px rgba(0, 0, 0, 0.4),
+            0 0 20px rgba(0, 242, 255, 0.1);
           z-index: 5;
         }
         
@@ -585,8 +614,8 @@ export default function Leaderboard() {
           align-items: center;
           gap: 40px;
           min-width: 480px;
-          border-right: 1px solid rgba(255,255,255,0.2);
-          background: rgba(255,255,255,0.05);
+          border-right: 1px solid rgba(255,255,255,0.04);
+          background: rgba(255,255,255,0.005);
         }
         
         .rank-container {
@@ -595,8 +624,8 @@ export default function Leaderboard() {
           min-width: 70px;
         }
         
-        .rank-hash { color: #fff; font-size: 1.2rem; font-weight: 300; }
-        .rank-number { font-size: 2.5rem; font-weight: 700; color: #fff; }
+        .rank-hash { color: #00f2ff; font-size: 1.2rem; font-weight: 300; }
+        .rank-number { font-size: 2.5rem; font-weight: 700; color: #00f2ff; }
         
         .user-profile {
           display: flex;
@@ -615,7 +644,7 @@ export default function Leaderboard() {
           object-fit: cover;
           position: relative;
           z-index: 2;
-          border: 1px solid rgba(255,255,255,0.3);
+          border: 1px solid rgba(255,255,255,0.1);
         }
         
         .avatar-ring {
@@ -623,22 +652,22 @@ export default function Leaderboard() {
           inset: -3px;
           border: 2px solid #fff;
           border-radius: 20px;
-          opacity: 0.2;
+          opacity: 0.1;
           z-index: 1;
         }
         
         .roles-badge {
           position: absolute;
           bottom: -5px; right: -5px;
-          background: #fff;
-          color: #FF8C00;
+          background: #8000ff;
+          color: white;
           font-size: 0.65rem;
           font-weight: 700;
           padding: 2px 6px;
           border-radius: 6px;
           z-index: 10;
-          border: 2px solid #FF8C00;
-          box-shadow: 0 0 10px rgba(255,255,255,0.5);
+          border: 2px solid #101010;
+          box-shadow: 0 0 10px rgba(128,0,255,0.5);
         }
         
         .name-box {
@@ -661,6 +690,26 @@ export default function Leaderboard() {
           letter-spacing: -0.5px;
         }
         
+        /* === Стили для дельты === */
+        .delta-container {
+          font-size: 0.75rem;
+          line-height: 1.4;
+        }
+        
+        .delta-row {
+          display: flex;
+          justify-content: flex-start;
+          margin-bottom: 2px;
+        }
+        
+        .delta-row:last-child {
+          margin-bottom: 0;
+        }
+        
+        .value.positive { color: #4ade80; }
+        .value.negative { color: #ef4444; }
+        .value.neutral { color: #a1a1aa; }
+        
         .user-meta {
           display: flex;
           gap: 8px;
@@ -671,30 +720,30 @@ export default function Leaderboard() {
           display: flex;
           align-items: center;
           gap: 6px;
-          background: rgba(255, 255, 255, 0.1);
-          border: 1px solid rgba(255, 255, 255, 0.3);
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.08);
           padding: 4px 10px;
           border-radius: 8px;
           font-size: 0.75rem;
-          color: rgba(255, 255, 255, 0.9);
+          color: rgba(255, 255, 255, 0.5);
           text-decoration: none;
           transition: 0.2s;
         }
         
         .twitter-link {
-          color: #fff;
-          border-color: rgba(255, 255, 255, 0.3);
+          color: #00f2ff;
+          border-color: rgba(0, 242, 255, 0.15);
           cursor: pointer;
         }
         
         .twitter-link:hover:not(.disabled) {
-          background: rgba(255, 255, 255, 0.2);
-          border-color: #fff;
+          background: rgba(0, 242, 255, 0.1);
+          border-color: #00f2ff;
         }
         
         .twitter-link.disabled {
-          opacity: 0.4;
-          filter: grayscale(0.5);
+          opacity: 0.3;
+          filter: grayscale(1);
           cursor: default;
         }
         
@@ -717,36 +766,36 @@ export default function Leaderboard() {
         .twitter-stats-column { display: flex; flex-direction: column; gap: 2px; }
         
         .stat-row { display: flex; align-items: baseline; gap: 6px; }
-        .stat-row.sub { opacity: 0.7; margin-top: -1px; }
+        .stat-row.sub { opacity: 0.5; margin-top: -1px; }
         
         .stat-val { font-size: 1.1rem; font-weight: 700; color: #fff; }
         .stat-suffix { font-size: 0.6rem; letter-spacing: 1px; }
         
         .stat-dot-small { width: 4px; height: 4px; border-radius: 50%; margin-bottom: 2px; }
-        .stat-dot-small.likes { background: #fff; box-shadow: 0 0 5px #fff; }
-        .stat-dot-small.views { background: #fff; box-shadow: 0 0 5px #fff; }
-        .stat-dot-small.replies { background: #fff; box-shadow: 0 0 5px #fff; }
+        .stat-dot-small.likes { background: #ff4b2b; box-shadow: 0 0 5px #ff4b2b; }
+        .stat-dot-small.views { background: #00f2ff; box-shadow: 0 0 5px #00f2ff; }
+        .stat-dot-small.replies { background: #4ade80; box-shadow: 0 0 5px #4ade80; }
         
-        .channel-activity-row { display: flex; align-items: baseline; gap: 6px; margin-top: 4px; opacity: 0.8; }
-        .stat-dot-small.channels { background: #fff; box-shadow: 0 0 5px #fff; }
+        .channel-activity-row { display: flex; align-items: baseline; gap: 6px; margin-top: 4px; opacity: 0.7; }
+        .stat-dot-small.channels { background: #8000ff; box-shadow: 0 0 5px #8000ff; }
         
         .metric-label {
           display: block;
           font-size: 0.6rem;
-          color: rgba(255,255,255,0.7);
+          color: #555;
           letter-spacing: 2px;
           margin-bottom: 8px;
         }
         
         .metric-number { font-size: 1.8rem; font-weight: 700; color: #fff; }
-        .metric-unit { font-size: 0.7rem; color: rgba(255,255,255,0.8); margin-left: 6px; font-weight: 500; }
+        .metric-unit { font-size: 0.7rem; color: #333; margin-left: 6px; font-weight: 500; }
         
         .metric-box.total {
-          background: rgba(255, 255, 255, 0.1);
+          background: rgba(255, 255, 255, 0.02);
           border-radius: 14px;
           padding: 15px 25px;
           text-align: right;
-          border: 1px solid rgba(255,255,255,0.2);
+          border: 1px solid rgba(255,255,255,0.03);
           transition: all 0.3s ease;
         }
         
@@ -754,13 +803,13 @@ export default function Leaderboard() {
           font-size: 2.2rem;
           font-weight: 700;
           color: #fff;
-          text-shadow: 0 0 20px rgba(255,255,255,0.3);
+          text-shadow: 0 0 20px rgba(0,242,255,0.3);
         }
         
         .modal-overlay {
           position: fixed;
           top: 0; left: 0; width: 100%; height: 100%;
-          background: rgba(0, 0, 0, 0.7);
+          background: rgba(0, 0, 0, 0.9);
           backdrop-filter: blur(12px);
           display: flex;
           justify-content: center;
@@ -771,14 +820,14 @@ export default function Leaderboard() {
         }
         
         .modal-content {
-          background: #FFA500; /* ✅ Lighter orange for modal */
+          background: #151515;
           width: 100%;
           max-width: 600px;
           border-radius: 32px;
-          border: 1px solid rgba(255, 255, 255, 0.3);
+          border: 1px solid rgba(0, 242, 255, 0.2);
           padding: 40px;
           position: relative;
-          box-shadow: 0 25px 50px rgba(0,0,0,0.3), 0 0 30px rgba(255, 255, 255, 0.1);
+          box-shadow: 0 25px 50px rgba(0,0,0,0.5), 0 0 30px rgba(0, 242, 255, 0.1);
           animation: modalSlideUp 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
         }
         
@@ -786,11 +835,11 @@ export default function Leaderboard() {
           position: absolute;
           top: 30px; right: 30px;
           background: none; border: none;
-          color: #fff; font-size: 32px; cursor: pointer;
+          color: #555; font-size: 32px; cursor: pointer;
           transition: 0.2s;
         }
         
-        .close-btn:hover { color: #FF8C00; transform: rotate(90deg); }
+        .close-btn:hover { color: #fff; transform: rotate(90deg); }
         
         .modal-header {
           display: flex;
@@ -807,24 +856,24 @@ export default function Leaderboard() {
         .modal-avatar {
           width: 100%; height: 100%;
           border-radius: 24px;
-          border: 2px solid #fff;
+          border: 2px solid #00f2ff;
           position: relative;
           z-index: 2;
         }
         
         .modal-avatar-glow {
           position: absolute;
-          inset: 0; background: #fff;
-          filter: blur(20px); opacity: 0.2;
+          inset: 0; background: #00f2ff;
+          filter: blur(20px); opacity: 0.3;
           z-index: 1;
         }
         
         .modal-titles h2 { margin: 10px 0 5px; font-size: 2.2rem; color: #fff; }
-        .modal-titles p { margin: 0; color: rgba(255,255,255,0.9); font-size: 1rem; }
+        .modal-titles p { margin: 0; color: #555; font-size: 1rem; }
         
         .modal-rank-badge {
           display: inline-block;
-          background: #fff; color: #FF8C00;
+          background: #00f2ff; color: #000;
           font-weight: 700; font-size: 0.7rem;
           padding: 4px 12px; border-radius: 20px;
           letter-spacing: 1px;
@@ -838,38 +887,38 @@ export default function Leaderboard() {
         }
         
         .stat-group-modal h3 {
-          font-size: 0.7rem; color: #fff;
-          letter-spacing: 2px; opacity: 0.9;
-          margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.2);
+          font-size: 0.7rem; color: #00f2ff;
+          letter-spacing: 2px; opacity: 0.6;
+          margin-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.05);
           padding-bottom: 10px;
         }
         
         .stat-item-modal {
           display: flex; justify-content: space-between;
-          padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.1);
-          font-size: 0.95rem; color: rgba(255,255,255,0.9);
+          padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.02);
+          font-size: 0.95rem; color: #aaa;
         }
         
         .stat-item-modal .val { color: #fff; font-weight: 700; }
         
         .modal-total-score {
-          background: linear-gradient(135deg, rgba(255, 255, 255, 0.2) 0%, transparent 100%);
-          border: 1px solid rgba(255, 255, 255, 0.3);
+          background: linear-gradient(135deg, rgba(0, 242, 255, 0.1) 0%, transparent 100%);
+          border: 1px solid rgba(0, 242, 255, 0.2);
           border-radius: 20px;
           padding: 25px 30px;
           display: flex; justify-content: space-between; align-items: center;
         }
         
         .score-label { display: block; font-weight: 700; color: #fff; font-size: 1.1rem; }
-        .score-sub { display: block; color: rgba(255,255,255,0.9); font-size: 0.8rem; }
-        .score-value { font-size: 2.5rem; font-weight: 700; color: #fff; }
+        .score-sub { display: block; color: #555; font-size: 0.8rem; }
+        .score-value { font-size: 2.5rem; font-weight: 700; color: #00f2ff; }
         
         .download-btn {
           margin-top: 30px;
           width: 100%;
           background: transparent;
-          border: 1px dashed rgba(255, 255, 255, 0.5);
-          color: #fff;
+          border: 1px dashed rgba(0, 242, 255, 0.4);
+          color: #00f2ff;
           padding: 14px;
           border-radius: 16px;
           cursor: pointer;
@@ -885,9 +934,9 @@ export default function Leaderboard() {
         }
         
         .download-btn:hover {
-          background: rgba(255, 255, 255, 0.15);
+          background: rgba(0, 242, 255, 0.05);
           border-style: solid;
-          box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+          box-shadow: 0 0 20px rgba(0, 242, 255, 0.1);
         }
         
         /* === Оптимизация для html2canvas === */
@@ -902,16 +951,16 @@ export default function Leaderboard() {
         @keyframes modalFadeIn { from { opacity: 0; } }
         @keyframes modalSlideUp { from { transform: translateY(40px); opacity: 0; } }
         
-        .footer { text-align: center; padding: 40px 0; margin-top: 60px; border-top: 1px solid rgba(255,255,255,0.2); }
+        .footer { text-align: center; padding: 40px 0; margin-top: 60px; border-top: 1px solid rgba(255,255,255,0.03); }
         
         .footer-links { display: flex; justify-content: center; align-items: center; gap: 15px; }
         
-        .f-link { color: #fff; text-decoration: none; opacity: 0.9; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
-        .f-link:hover { opacity: 1; color: #FFD700; }
-        .f-sep { color: rgba(255,255,255,0.3); }
+        .f-link { color: #fff; text-decoration: none; opacity: 0.6; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
+        .f-link:hover { opacity: 1; color: #00f2ff; }
+        .f-sep { color: rgba(255,255,255,0.1); }
         
         @media (max-width: 1100px) {
-          .card-identity { min-width: auto; flex-direction: column; align-items: flex-start; gap: 20px; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.2); }
+          .card-identity { min-width: auto; flex-direction: column; align-items: flex-start; gap: 20px; border-right: none; border-bottom: 1px solid rgba(255,255,255,0.04); }
         }
       `}</style>
     </div>
