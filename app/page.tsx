@@ -36,7 +36,6 @@ export default function Leaderboard() {
   const downloadCard = async () => {
     const h2c = (window as any).html2canvas;
     if (modalRef.current && h2c) {
-      // ✅ Оптимизация: отключаем тяжёлые эффекты при экспорте
       modalRef.current.classList.add('export-mode');
       
       const canvas = await h2c(modalRef.current, {
@@ -133,7 +132,7 @@ export default function Leaderboard() {
           <div className="branding-banner">
             <div className="branding-content">
               <div className="status-dot"></div>
-              <h1 className="main-title">ORO AI SOCIAL RANKING</h1>
+              <h1 className="main-title">OPENGRADIENT SOCIAL RANKING</h1>
               <div className="status-info">
                 <span className="update-badge">24H SYNC</span>
                 <span className="status-label">LEADERBOARD UPDATED ONCE DAILY</span>
@@ -203,7 +202,6 @@ export default function Leaderboard() {
                           <h2 className="display-name">{user.username}</h2>
                         </div>
                         
-                        {/* === Индикаторы изменения XP и сообщений === */}
                         {user.prev_total_score !== undefined && user.prev_discord_messages !== undefined && (
                           <div className="delta-container" style={{ marginTop: '6px', fontSize: '0.75rem' }}>
                             <div className="delta-row">
@@ -690,7 +688,6 @@ export default function Leaderboard() {
           letter-spacing: -0.5px;
         }
         
-        /* === Стили для дельты === */
         .delta-container {
           font-size: 0.75rem;
           line-height: 1.4;
@@ -939,7 +936,6 @@ export default function Leaderboard() {
           box-shadow: 0 0 20px rgba(0, 242, 255, 0.1);
         }
         
-        /* === Оптимизация для html2canvas === */
         .modal-content.export-mode,
         .contributor-card.export-mode {
           filter: none !important;
