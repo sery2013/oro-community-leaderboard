@@ -115,6 +115,7 @@ def get_discord_data():
                     uid = m['author']['id']
                     content = m.get('content', '')
                     
+                    # Обработка embeds (для XP)
                     if m.get('embeds'):
                         for embed in m['embeds']:
                             search_text = embed.get('description', '')
@@ -151,6 +152,7 @@ def get_discord_data():
                                     if xp_val > user_stats[target_uid].get("total_score", 0):
                                         user_stats[target_uid]["total_score"] = xp_val
                     
+                    # Инициализация пользователя, если ещё нет
                     if uid not in user_stats:
                         avatar = m['author'].get('avatar')
                         user_stats[uid] = {
@@ -171,10 +173,11 @@ def get_discord_data():
                             "prev_discord_messages": 0
                         }
                     
+                    # Считаем сообщения Discord
                     user_stats[uid]["discord_messages"] += 1
                     user_stats[uid]["channels"].add(tid)
                     
-                    # ✅ Исправленный regex для ссылок на твиты
+                    # ✅ ИСПРАВЛЕННЫЙ regex для ссылок на твиты
                     links = re.findall(r'https?://(?:twitter\.com|x\.com|vxtwitter\.com|fxtwitter\.com)/\w+/status/\d+', content)
                     for l in links:
                         tweet_list.append((uid, l))
@@ -224,6 +227,7 @@ async def main():
     
     users, tweets = get_discord_data()
     
+    # ✅ ДОБАВЛЕНО: лог количества найденных твитов
     log(f"📊 Найдено ссылок на твиты: {len(tweets)}")
     
     if tweets:
