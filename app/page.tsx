@@ -133,7 +133,7 @@ export default function Leaderboard() {
           <div className="branding-banner">
             <div className="branding-content">
               <div className="status-dot"></div>
-              <h1 className="main-title">OPENGRADIENT SOCIAL RANKING</h1>
+              <h1 className="main-title">ORO AI SOCIAL RANKING</h1>
               <div className="status-info">
                 <span className="update-badge">24H SYNC</span>
                 <span className="status-label">LEADERBOARD UPDATED ONCE DAILY</span>
