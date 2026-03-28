@@ -7,22 +7,21 @@ def log(msg):
     sys.stdout.flush()
 
 # Настройки сервера
-GUILD_ID = "1349045850331938826"
+GUILD_ID = "1132794141403791483"
 THREAD_IDS = [
-    "1351488160206426227",
-    "1351488253332557867",
-    "1351492950768619552",
-    "1367864741548261416",
-    "1371904712001065000",
-    "1465733325149835295",
-    "1371110511919497226",
-    "1366338962813222993",
-    "1371904910324404325",
-    "1371413462982594620",
-    "1372149550793490505",
-    "1372149324192153620",
-    "1372149873188536330",
-    "1372242189240897596"
+    "1313064716821856278",
+    "1445778945504051350",
+    "1445779510476800192",
+    "1431895619668283563",
+    "1333734765853151306",
+    "1305476727023075411",
+    "1443961056308494416",
+    "1443967067991834666",
+    "1445777584662249493",
+    "1443967038241509508",
+    "1443966927591440435",
+    "1443966987763056701",
+    "1443967383898427483"
 ]
 DAYS_BACK = 1
 TARGET_DATE = datetime.now(timezone.utc) - timedelta(days=DAYS_BACK)
@@ -54,13 +53,12 @@ async def fetch_tweet(session, tweet_info, api_key):
         async with session.get(api_url, headers={"Authorization": f"Bearer {api_key}"}, timeout=5) as resp:
             if resp.status == 200:
                 data = await resp.json()
-                # Извлекаем username автора твита
                 twitter_handle = None
                 if 'user' in data and 'screen_name' in data['user']:
                     twitter_handle = data['user']['screen_name']
                 elif 'author' in data and 'username' in data['author']:
                     twitter_handle = data['author']['username']
-                
+                    
                 return (uid, 
                         data.get('favorite_count', 0), 
                         data.get('views_count', 0), 
@@ -195,7 +193,7 @@ def get_discord_data():
                 break
         
         log(f"✅ Готово: {tid}. Сообщений: {count}")
-        time.sleep(18)  # ⏳ Задержка 18 секунд между ветками
+        time.sleep(18)
     
     log("🛡️ Обогащение данными (Роли + Дата)...")
     for uid in user_stats:
