@@ -23,10 +23,10 @@ THREAD_IDS = [
     "1372149324192153620",
     "1372149873188536330",
     "1372242189240897596",
-    "1389273374748049439",  # ✅ Добавлено
-    "1351488556924932128"   # ✅ Добавлено
+    "1389273374748049439",
+    "1351488556924932128"
 ]
-DAYS_BACK = 1
+DAYS_BACK = 2
 TARGET_DATE = datetime.now(timezone.utc) - timedelta(days=DAYS_BACK)
 
 def parse_xp_value(xp_str):
@@ -49,6 +49,7 @@ async def fetch_tweet(session, tweet_info, api_key):
     tweet_id = id_match.group(1) if id_match else None
     if not tweet_id:
         return uid, 0, 0, 0, "Unknown", None
+    
     api_url = f"https://api.socialdata.tools/twitter/tweets/{tweet_id}"
     try:
         async with session.get(api_url, headers={"Authorization": f"Bearer {api_key}"}, timeout=5) as resp:
@@ -60,9 +61,9 @@ async def fetch_tweet(session, tweet_info, api_key):
                 elif 'author' in data and 'username' in data['author']:
                     twitter_handle = data['author']['username']
                 return (uid,
-                    data.get('favorite_count', 0),
-                    data.get('views_count', 0),
-                    data.get('reply_count', 0),
+                    data.get('favorite_count', 0) or 0,
+                    data.get('views_count', 0) or 0,
+                    data.get('reply_count', 0) or 0,
                     "Found",
                     twitter_handle)
             return uid, 0, 0, 0, "Error", None
@@ -233,9 +234,9 @@ async def main():
                 for uid, likes, views, replies, status, twitter_handle in results:
                     if status == "Found":
                         users[uid]["twitter_posts"] += 1
-                        users[uid]["twitter_likes"] += likes
-                        users[uid]["twitter_views"] += views
-                        users[uid]["twitter_replies"] += replies
+                        users[uid]["twitter_likes"] += (likes or 0)
+                        users[uid]["twitter_views"] += (views or 0)
+                        users[uid]["twitter_replies"] += (replies or 0)
                         
                         if twitter_handle:
                             users[uid]["twitter_handle"] = twitter_handle
