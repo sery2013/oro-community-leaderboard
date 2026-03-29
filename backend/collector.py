@@ -21,7 +21,7 @@ THREAD_IDS = [
     "1389273374748049439"
 ]
 
-DAYS_BACK = 1
+DAYS_BACK = 2
 TARGET_DATE = datetime.now(timezone.utc) - timedelta(days=DAYS_BACK)
 
 def parse_xp_value(xp_str):
