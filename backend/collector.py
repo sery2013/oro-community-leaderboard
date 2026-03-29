@@ -8,9 +8,10 @@ def log(msg):
 
 # ✅ НАСТРОЙКИ СЕРВЕРА ORO
 GUILD_ID = "1349045850331938826"
-CONTENT_THREAD = "1389273374748049439" # Ветка с твитами
-XP_SOURCE_THREAD = "1351492950768619552" # Ветка с командами XP
-# Все ветки для учета сообщений
+CONTENT_THREAD = "1389273374748049439"   # Ветка для твитов
+XP_SOURCE_THREAD = "1351492950768619552" # Ветка для парсинга XP (команды бота)
+
+# Все ветки для учета сообщений (включая контент и xp)
 THREAD_IDS = [
     "1351488160206426227", "1351488253332557867", "1351492950768619552",
     "1367864741548261416", "1371904712001065000", "1465733325149835295",
@@ -33,6 +34,7 @@ def parse_xp_value(xp_str):
 
 async def fetch_tweet(session, tweet_info, api_key):
     uid, url = tweet_info
+    # Улучшенная регулярка для захвата ID твита без лишних параметров
     t_id = re.search(r"status/(\d+)", url)
     if not t_id: return uid, 0, 0, 0, "Unknown", None
     
@@ -41,13 +43,19 @@ async def fetch_tweet(session, tweet_info, api_key):
         async with session.get(api_url, headers={"Authorization": f"Bearer {api_key}"}, timeout=10) as resp:
             if resp.status == 200:
                 data = await resp.json()
+                # Обработка разных форматов ответа API SocialData
                 u = data.get('user') or data.get('author') or {}
-                return (uid, data.get('favorite_count', 0), data.get('views_count', 0),
-                        data.get('reply_count', 0), "Found", u.get('screen_name') or u.get('username'))
+                return (uid, 
+                        data.get('favorite_count', 0), 
+                        data.get('views_count', 0), 
+                        data.get('reply_count', 0), 
+                        "Found", 
+                        u.get('screen_name') or u.get('username'))
     except: pass
     return uid, 0, 0, 0, "Error", None
 
 def get_discord_member_info(user_id, token):
+    """Запрос ролей и даты вступления для корректного отображения на сайте"""
     url = f"https://discord.com/api/v10/guilds/{GUILD_ID}/members/{user_id}"
     headers = {"Authorization": token}
     try:
@@ -63,14 +71,14 @@ def get_discord_data():
     headers = {"Authorization": token}
     user_stats, tweet_list = {}, []
     
-    # Сбор данных по каждой ветке
     for tid in set(THREAD_IDS):
-        log(f"📡 Сбор: {tid}")
+        log(f"📡 Сбор данных из ветки: {tid}")
         last_id = None
         count = 0
         while True:
             url = f"https://discord.com/api/v10/channels/{tid}/messages?limit=100"
             if last_id: url += f"&before={last_id}"
+            
             r = requests.get(url, headers=headers, timeout=10)
             if r.status_code != 200: break
             msgs = r.json()
@@ -84,25 +92,34 @@ def get_discord_data():
                 if uid not in user_stats:
                     avatar = m['author'].get('avatar')
                     user_stats[uid] = {
-                        "user_id": uid, "username": m['author']['username'],
+                        "user_id": uid, 
+                        "username": m['author']['username'],
                         "avatar_url": f"https://cdn.discordapp.com/avatars/{uid}/{avatar}.png" if avatar else None,
-                        "discord_messages": 0, "twitter_posts": 0, "twitter_likes": 0,
-                        "twitter_views": 0, "twitter_replies": 0, "twitter_handle": "not_linked",
-                        "channels": set(), "total_score": 0, "discord_joined_at": None, "discord_roles": []
+                        "discord_messages": 0, 
+                        "twitter_posts": 0, "twitter_likes": 0, "twitter_views": 0, "twitter_replies": 0,
+                        "twitter_handle": "not_linked",
+                        "channels": set(), 
+                        "total_score": 0,
+                        "discord_joined_at": None,
+                        "discord_roles": [],
+                        "prev_total_score": 0,
+                        "prev_discord_messages": 0
                     }
                 
                 user_stats[uid]["discord_messages"] += 1
                 user_stats[uid]["channels"].add(tid)
 
-                # 1. Твиты собираем ТОЛЬКО из CONTENT_THREAD
+                # 1. Сбор твитов ТОЛЬКО из ветки контента
                 if tid == CONTENT_THREAD:
-                    content = m.get('content', '')
-                    for e in m.get('embeds', []): content += f" {e.get('url', '')} {e.get('description', '')}"
-                    links = re.findall(r'https?://(?:twitter\.com|x\.com|vxtwitter\.com|fxtwitter\.com)/[\w\d_]+/status/(\d+)', content)
-                    for t_id_str in links:
-                        tweet_list.append((uid, f"https://twitter.com/i/status/{t_id_str}"))
+                    full_text = m.get('content', '')
+                    for e in m.get('embeds', []):
+                        full_text += f" {e.get('url', '')} {e.get('description', '')}"
+                    
+                    links = re.findall(r'https?://(?:twitter\.com|x\.com|vxtwitter\.com|fxtwitter\.com)/[\w\d_]+/status/(\d+)', full_text)
+                    for tweet_id_only in links:
+                        tweet_list.append((uid, f"https://twitter.com/i/status/{tweet_id_only}"))
 
-                # 2. XP собираем ТОЛЬКО из XP_SOURCE_THREAD
+                # 2. Сбор XP ТОЛЬКО из ветки XP (парсинг эмбедов бота)
                 if tid == XP_SOURCE_THREAD and m.get('embeds'):
                     for emb in m['embeds']:
                         txt = (emb.get('description', '') + " ".join([f.get('value', '') for f in emb.get('fields', [])]))
@@ -117,10 +134,11 @@ def get_discord_data():
                 last_id = m['id']
                 count += 1
             if last_id == "STOP": break
-        log(f"✅ Ветка {tid} готова. Сообщений: {count}")
-        time.sleep(2) # Небольшая пауза между ветками
+        log(f"✅ Готово: {tid}. Сообщений: {count}")
+        time.sleep(2) # Защита от Rate Limit
 
-    log("🛡️ Обогащение ролями...")
+    # Обогащение данными (Роли + Дата)
+    log("🛡️ Обогащение данными из Discord API...")
     for uid in user_stats:
         joined, roles = get_discord_member_info(uid, token)
         user_stats[uid]["discord_joined_at"] = joined
@@ -133,7 +151,7 @@ async def main():
     supabase = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
     tw_key = os.getenv('SOCIALDATA_KEY')
 
-    # Загружаем старые данные
+    # Загружаем текущие данные для истории (prev_*)
     try:
         old_res = supabase.table("leaderboard_stats").select("user_id, total_score, discord_messages").execute()
         old_data = {r['user_id']: r for r in old_res.data}
@@ -142,35 +160,44 @@ async def main():
     users, tweets = get_discord_data()
 
     if tweets:
-        log(f"🐦 Найдено {len(tweets)} твитов...")
+        log(f"🐦 Найдено {len(tweets)} твитов. Обработка через Twitter API...")
         async with aiohttp.ClientSession() as session:
             for i in range(0, len(tweets), 10):
                 results = await asyncio.gather(*[fetch_tweet(session, t, tw_key) for t in tweets[i:i+10]])
                 for uid, l, v, r, status, handle in results:
                     if status == "Found" and uid in users:
+                        # ✅ Исправлено: защита от NoneType через (val or 0)
                         users[uid]["twitter_posts"] += 1
-                        users[uid]["twitter_likes"] += l
-                        users[uid]["twitter_views"] += v
-                        users[uid]["twitter_replies"] += r
+                        users[uid]["twitter_likes"] += (l or 0)
+                        users[uid]["twitter_views"] += (v or 0)
+                        users[uid]["twitter_replies"] += (r or 0)
                         if handle: users[uid]["twitter_handle"] = handle
                 log(f"⏳ Прогресс твитов: {min(i+10, len(tweets))}/{len(tweets)}")
 
     payload = []
     for uid, info in users.items():
-        # Базовый XP по сообщениям
+        # Базовый расчет XP, если бот ничего не выдал (10 XP за сообщение)
         calc_xp = info["discord_messages"] * 10
-        if info["total_score"] < calc_xp: info["total_score"] = calc_xp
+        if info["total_score"] < calc_xp:
+            info["total_score"] = calc_xp
         
-        # Сохраняем историю
-        old = old_data.get(uid, {})
-        info["prev_total_score"] = old.get("total_score", 0)
-        info["prev_discord_messages"] = old.get("discord_messages", 0)
+        # Запись исторических данных для фронтенда
+        old_entry = old_data.get(uid, {})
+        info["prev_total_score"] = old_entry.get("total_score", 0)
+        info["prev_discord_messages"] = old_entry.get("discord_messages", 0)
         info["channels_count"] = len(info.pop("channels"))
+        
         payload.append(info)
 
     if payload:
-        log(f"📤 Обновление Supabase: {len(payload)} юзеров...")
-        supabase.table("leaderboard_stats").upsert(payload, on_conflict="user_id").execute()
-        log("✅ ГОТОВО!")
+        log(f"📤 Сохранение {len(payload)} пользователей в Supabase...")
+        try:
+            supabase.table("leaderboard_stats").upsert(payload, on_conflict="user_id").execute()
+            log("✅ База данных успешно обновлена!")
+        except Exception as e:
+            log(f"❌ ОШИБКА SUPABASE: {e}")
 
-if __name__ == "__main__": asyncio.run(main())
+    log("🏁 ЗАВЕРШЕНО!")
+
+if __name__ == "__main__":
+    asyncio.run(main())
