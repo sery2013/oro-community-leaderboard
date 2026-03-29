@@ -7,12 +7,12 @@ def log(msg):
     sys.stdout.flush()
 
 # Настройки сервера
-GUILD_ID = "1349045850331938826"  # ✅ Твой ID сервера
+GUILD_ID = "1349045850331938826"
 THREAD_IDS = [
-    "1351488160206426227",  # ✅ Твоя ветка
-    "1351488253332557867",  # ✅ Твоя ветка
+    "1351488160206426227",
+    "1351488253332557867",
     "1351492950768619552",
-    "1367864741548261416",  # ✅ Твоя ветка
+    "1367864741548261416",
     "1371904712001065000",
     "1465733325149835295",
     "1371110511919497226",
@@ -22,7 +22,9 @@ THREAD_IDS = [
     "1372149550793490505",
     "1372149324192153620",
     "1372149873188536330",
-    "1372242189240897596"
+    "1372242189240897596",
+    "1389273374748049439",  # ✅ ДОБАВЛЕНО
+    "1351488556924932128"   # ✅ ДОБАВЛЕНО
 ]
 DAYS_BACK = 1
 TARGET_DATE = datetime.now(timezone.utc) - timedelta(days=DAYS_BACK)
@@ -47,6 +49,7 @@ async def fetch_tweet(session, tweet_info, api_key):
     tweet_id = id_match.group(1) if id_match else None
     if not tweet_id:
         return uid, 0, 0, 0, "Unknown", None
+    
     api_url = f"https://api.socialdata.tools/twitter/tweets/{tweet_id}"
     try:
         async with session.get(api_url, headers={"Authorization": f"Bearer {api_key}"}, timeout=5) as resp:
@@ -112,6 +115,7 @@ def get_discord_data():
                     uid = m['author']['id']
                     content = m.get('content', '')
                     
+                    # Обработка embeds (для XP)
                     if m.get('embeds'):
                         for embed in m['embeds']:
                             search_text = embed.get('description', '')
@@ -148,6 +152,7 @@ def get_discord_data():
                                     if xp_val > user_stats[target_uid].get("total_score", 0):
                                         user_stats[target_uid]["total_score"] = xp_val
                     
+                    # Инициализация пользователя
                     if uid not in user_stats:
                         avatar = m['author'].get('avatar')
                         user_stats[uid] = {
@@ -168,12 +173,17 @@ def get_discord_data():
                             "prev_discord_messages": 0
                         }
                     
+                    # Считаем сообщения Discord
                     user_stats[uid]["discord_messages"] += 1
                     user_stats[uid]["channels"].add(tid)
                     
+                    # 🔍 Ищем ссылки на Twitter
                     links = re.findall(r'https?://(?:twitter\.com|x\.com|vxtwitter\.com|fxtwitter\.com)/\w+/status/\d+', content)
-                    for l in links:
-                        tweet_list.append((uid, l))
+                    if links:
+                        log(f"   🔗 UID {uid}: найдено ссылок: {len(links)}")
+                        for l in links:
+                            log(f"      → {l}")
+                            tweet_list.append((uid, l))
                     
                     last_id = m['id']
                     count += 1
@@ -187,6 +197,8 @@ def get_discord_data():
         
         log(f"✅ Готово: {tid}. Сообщений: {count}")
         time.sleep(18)
+    
+    log(f"📊 Всего найдено ссылок на твиты: {len(tweet_list)}")
     
     log("🛡️ Обогащение данными (Роли + Дата)...")
     for uid in user_stats:
@@ -210,6 +222,7 @@ async def main():
     
     supabase = create_client(s_url, s_key)
     
+    # Загружаем старые данные для дельт
     log("🔍 Загрузка предыдущих данных из Supabase...")
     try:
         response = supabase.table("leaderboard_stats").select("user_id, total_score, discord_messages").execute()
@@ -221,7 +234,7 @@ async def main():
     users, tweets = get_discord_data()
     
     if tweets:
-        log("🐦 Запрос данных из Twitter...")
+        log("🐦 Запрос данных из Twitter API...")
         async with aiohttp.ClientSession() as session:
             for i in range(0, len(tweets), 10):
                 batch = tweets[i:i+10]
@@ -240,7 +253,10 @@ async def main():
                             log(f"   ✅ Handle для {uid}: @{twitter_handle}")
                 
                 log(f"⏳ Прогресс: {min(i + 10, len(tweets))} / {len(tweets)}")
+    else:
+        log("⚠️ Твиты не найдены в сообщениях Discord")
     
+    # Формируем payload
     payload = []
     for uid, info in users.items():
         calc_xp = info["discord_messages"] * 10
