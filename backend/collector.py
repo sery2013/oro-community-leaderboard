@@ -7,12 +7,12 @@ def log(msg):
     sys.stdout.flush()
 
 # Настройки сервера
-GUILD_ID = "1349045850331938826"
+GUILD_ID = "1349045850331938826"  # ✅ Твой ID сервера
 THREAD_IDS = [
-    "1351488160206426227",
-    "1351488253332557867",
+    "1351488160206426227",  # ✅ Твоя ветка
+    "1351488253332557867",  # ✅ Твоя ветка
     "1351492950768619552",
-    "1367864741548261416",
+    "1367864741548261416",  # ✅ Твоя ветка
     "1371904712001065000",
     "1465733325149835295",
     "1371110511919497226",
@@ -22,9 +22,7 @@ THREAD_IDS = [
     "1372149550793490505",
     "1372149324192153620",
     "1372149873188536330",
-    "1372242189240897596",
-    "1389273374748049439",
-    "1351488556924932128"
+    "1372242189240897596"
 ]
 DAYS_BACK = 1
 TARGET_DATE = datetime.now(timezone.utc) - timedelta(days=DAYS_BACK)
@@ -49,7 +47,6 @@ async def fetch_tweet(session, tweet_info, api_key):
     tweet_id = id_match.group(1) if id_match else None
     if not tweet_id:
         return uid, 0, 0, 0, "Unknown", None
-    
     api_url = f"https://api.socialdata.tools/twitter/tweets/{tweet_id}"
     try:
         async with session.get(api_url, headers={"Authorization": f"Bearer {api_key}"}, timeout=5) as resp:
