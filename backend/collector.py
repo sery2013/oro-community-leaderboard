@@ -6,10 +6,10 @@ def log(msg):
     print(msg)
     sys.stdout.flush()
 
-# Настройки сервера
-GUILD_ID = "1349045850331938826"  # ✅ Твой ID сервера
+# ✅ Настройки сервера (ПРАВИЛЬНЫЕ ID)
+GUILD_ID = "1349045850331938826"
 THREAD_IDS = [
-    "1351488160206426227",  # ✅ Твои ID веток
+    "1351488160206426227",
     "1351488253332557867",
     "1351492950768619552",
     "1367864741548261416",
@@ -22,7 +22,8 @@ THREAD_IDS = [
     "1372149550793490505",
     "1372149324192153620",
     "1372149873188536330",
-    "1372242189240897596"
+    "1372242189240897596",
+    "1351488556924932128"  # ✅ 15 веток
 ]
 DAYS_BACK = 1
 TARGET_DATE = datetime.now(timezone.utc) - timedelta(days=DAYS_BACK)
@@ -47,6 +48,7 @@ async def fetch_tweet(session, tweet_info, api_key):
     tweet_id = id_match.group(1) if id_match else None
     if not tweet_id:
         return uid, 0, 0, 0, "Unknown", None
+    
     api_url = f"https://api.socialdata.tools/twitter/tweets/{tweet_id}"
     try:
         async with session.get(api_url, headers={"Authorization": f"Bearer {api_key}"}, timeout=5) as resp:
@@ -172,8 +174,11 @@ def get_discord_data():
                     user_stats[uid]["channels"].add(tid)
                     
                     links = re.findall(r'https?://(?:twitter\.com|x\.com|vxtwitter\.com|fxtwitter\.com)/\w+/status/\d+', content)
-                    for l in links:
-                        tweet_list.append((uid, l))
+                    if links:
+                        log(f"   🔗 UID {uid}: найдено ссылок: {len(links)}")
+                        for l in links:
+                            log(f"      → {l}")
+                            tweet_list.append((uid, l))
                     
                     last_id = m['id']
                     count += 1
@@ -223,7 +228,7 @@ async def main():
     users, tweets = get_discord_data()
     
     if tweets:
-        log("🐦 Запрос данных из Twitter...")
+        log("🐦 Запрос данных из Twitter API...")
         async with aiohttp.ClientSession() as session:
             for i in range(0, len(tweets), 10):
                 batch = tweets[i:i+10]
