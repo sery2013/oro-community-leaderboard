@@ -6,26 +6,16 @@ def log(msg):
     print(msg)
     sys.stdout.flush()
 
-# ✅ Настройки сервера (ПРАВИЛЬНЫЕ ID)
+# ✅ Настройки сервера
 GUILD_ID = "1349045850331938826"
 THREAD_IDS = [
-    "1351488160206426227",
-    "1351488253332557867",
-    "1351492950768619552",
-    "1367864741548261416",
-    "1371904712001065000",
-    "1465733325149835295",
-    "1371110511919497226",
-    "1366338962813222993",
-    "1371904910324404325",
-    "1371413462982594620",
-    "1372149550793490505",
-    "1372149324192153620",
-    "1372149873188536330",
-    "1372242189240897596",
-    "1351488556924932128"  # ✅ 15 веток
+    "1351488160206426227", "1351488253332557867", "1351492950768619552",
+    "1367864741548261416", "1371904712001065000", "1465733325149835295",
+    "1371110511919497226", "1366338962813222993", "1371904910324404325",
+    "1371413462982594620", "1372149550793490505", "1372149324192153620",
+    "1372149873188536330", "1372242189240897596", "1351488556924932128"
 ]
-DAYS_BACK = 1
+DAYS_BACK = 2
 TARGET_DATE = datetime.now(timezone.utc) - timedelta(days=DAYS_BACK)
 
 def parse_xp_value(xp_str):
@@ -114,6 +104,23 @@ def get_discord_data():
                     uid = m['author']['id']
                     content = m.get('content', '')
                     
+                    # --- ИЗМЕНЕНИЕ: Собираем текст из контента и эмбедов для поиска ссылок ---
+                    search_payload = content
+                    if m.get('embeds'):
+                        for emb in m['embeds']:
+                            search_payload += f" {emb.get('url', '')} {emb.get('description', '')}"
+                    
+                    # Регулярка теперь ловит x.com, vxtwitter и fxtwitter
+                    links = re.findall(r'https?://(?:twitter\.com|x\.com|vxtwitter\.com|fxtwitter\.com)/\w+/status/\d+', search_payload)
+                    
+                    if links:
+                        log(f"    🔗 UID {uid}: найдено ссылок: {len(links)}")
+                        for l in links:
+                            # Приводим к стандартному виду для API
+                            clean_l = l.replace('x.com', 'twitter.com').replace('vxtwitter.com', 'twitter.com').replace('fxtwitter.com', 'twitter.com')
+                            tweet_list.append((uid, clean_l))
+
+                    # Логика XP из эмбедов (оставляем без изменений)
                     if m.get('embeds'):
                         for embed in m['embeds']:
                             search_text = embed.get('description', '')
@@ -127,85 +134,47 @@ def get_discord_data():
                                 if user_mention:
                                     target_uid = user_mention.group(1)
                                     xp_val = parse_xp_value(xp_match.group(1))
-                                    
                                     if target_uid not in user_stats:
                                         user_stats[target_uid] = {
-                                            "user_id": target_uid,
-                                            "username": "Unknown",
-                                            "avatar_url": None,
-                                            "discord_messages": 0,
-                                            "twitter_posts": 0,
-                                            "twitter_likes": 0,
-                                            "twitter_views": 0,
-                                            "twitter_replies": 0,
-                                            "twitter_handle": "not_linked",
-                                            "channels": set(),
-                                            "total_score": 0,
-                                            "discord_joined_at": None,
-                                            "discord_roles": [],
-                                            "prev_total_score": 0,
-                                            "prev_discord_messages": 0
+                                            "user_id": target_uid, "username": "Unknown", "avatar_url": None,
+                                            "discord_messages": 0, "twitter_posts": 0, "twitter_likes": 0,
+                                            "twitter_views": 0, "twitter_replies": 0, "twitter_handle": "not_linked",
+                                            "channels": set(), "total_score": 0, "discord_joined_at": None,
+                                            "discord_roles": [], "prev_total_score": 0, "prev_discord_messages": 0
                                         }
-                                    
                                     if xp_val > user_stats[target_uid].get("total_score", 0):
                                         user_stats[target_uid]["total_score"] = xp_val
-                    
+
                     if uid not in user_stats:
                         avatar = m['author'].get('avatar')
                         user_stats[uid] = {
-                            "user_id": uid,
-                            "username": m['author']['username'],
+                            "user_id": uid, "username": m['author']['username'],
                             "avatar_url": f"https://cdn.discordapp.com/avatars/{uid}/{avatar}.png" if avatar else None,
-                            "discord_messages": 0,
-                            "twitter_posts": 0,
-                            "twitter_likes": 0,
-                            "twitter_views": 0,
-                            "twitter_replies": 0,
-                            "twitter_handle": "not_linked",
-                            "channels": set(),
-                            "total_score": 0,
-                            "discord_joined_at": None,
-                            "discord_roles": [],
-                            "prev_total_score": 0,
-                            "prev_discord_messages": 0
+                            "discord_messages": 0, "twitter_posts": 0, "twitter_likes": 0,
+                            "twitter_views": 0, "twitter_replies": 0, "twitter_handle": "not_linked",
+                            "channels": set(), "total_score": 0, "discord_joined_at": None,
+                            "discord_roles": [], "prev_total_score": 0, "prev_discord_messages": 0
                         }
                     
                     user_stats[uid]["discord_messages"] += 1
                     user_stats[uid]["channels"].add(tid)
-                    
-                    links = re.findall(r'https?://(?:twitter\.com|x\.com|vxtwitter\.com|fxtwitter\.com)/\w+/status/\d+', content)
-                    if links:
-                        log(f"   🔗 UID {uid}: найдено ссылок: {len(links)}")
-                        for l in links:
-                            log(f"      → {l}")
-                            tweet_list.append((uid, l))
-                    
                     last_id = m['id']
                     count += 1
                 
                 if last_id == "STOP":
                     break
-                    
             except Exception as e:
                 log(f"❌ Ошибка Discord: {e}")
                 break
         
         log(f"✅ Готово: {tid}. Сообщений: {count}")
-        time.sleep(18)
+        time.sleep(5) # Уменьшил задержку, 18 сек многовато
     
     log(f"📊 Всего найдено ссылок на твиты: {len(tweet_list)}")
-    
-    log("🛡️ Обогащение данными (Роли + Дата)...")
-    for uid in user_stats:
-        joined, roles = get_discord_member_info(uid, token)
-        user_stats[uid]["discord_joined_at"] = joined
-        user_stats[uid]["discord_roles"] = roles
-    
     return user_stats, tweet_list
 
 async def main():
     log("🚀 Запуск процесса...")
-    
     s_url = os.getenv("SUPABASE_URL")
     s_key = os.getenv("SUPABASE_KEY")
     tw_key = os.getenv('SOCIALDATA_KEY')
@@ -234,18 +203,14 @@ async def main():
                 batch = tweets[i:i+10]
                 tasks = [fetch_tweet(session, t, tw_key) for t in batch]
                 results = await asyncio.gather(*tasks)
-                
                 for uid, likes, views, replies, status, twitter_handle in results:
-                    if status == "Found":
+                    if status == "Found" and uid in users:
                         users[uid]["twitter_posts"] += 1
                         users[uid]["twitter_likes"] += (likes or 0)
                         users[uid]["twitter_views"] += (views or 0)
                         users[uid]["twitter_replies"] += (replies or 0)
-                        
                         if twitter_handle:
                             users[uid]["twitter_handle"] = twitter_handle
-                            log(f"   ✅ Handle для {uid}: @{twitter_handle}")
-                
                 log(f"⏳ Прогресс: {min(i + 10, len(tweets))} / {len(tweets)}")
     else:
         log("⚠️ Твиты не найдены в сообщениях Discord")
@@ -264,7 +229,6 @@ async def main():
         clean_info = info.copy()
         if "channels" in clean_info:
             del clean_info["channels"]
-        
         payload.append(clean_info)
     
     if payload:
