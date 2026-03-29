@@ -168,7 +168,7 @@ def get_discord_data():
                 break
         
         log(f"✅ Готово: {tid}. Сообщений: {count}")
-        time.sleep(5) # Уменьшил задержку, 18 сек многовато
+        time.sleep(10) # Уменьшил задержку, 18 сек многовато
     
     log(f"📊 Всего найдено ссылок на твиты: {len(tweet_list)}")
     return user_stats, tweet_list
