@@ -9,7 +9,6 @@ def log(msg):
 
 # --- НАСТРОЙКИ ---
 GUILD_ID = 1349045850331938826
-# Список каналов/веток для прослушивания
 THREAD_IDS = [
     1351487907042431027, 1351488160206426227, 1351488253332557867, 
     1351492950768619552, 1367864741548261416, 1371904712001065000, 
@@ -22,15 +21,11 @@ THREAD_IDS = [
 # Инициализация Supabase
 sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
 
-# Инициализация Discord Bot
-intents = discord.Intents.default()
-intents.messages = True
-intents.message_content = True
-intents.members = True
-bot = commands.Bot(command_prefix="!", intents=intents)
+# Инициализация Self-Bot (убрали intents, добавили self_bot=True)
+bot = commands.Bot(command_prefix="self.", self_bot=True)
 
-# Временное хранилище твитов для фоновой обработки
-pending_tweets = [] # Формат: (user_id, tweet_url)
+# Хранилище твитов
+pending_tweets = [] 
 
 def parse_xp_value(xp_str):
     try:
@@ -42,9 +37,7 @@ def parse_xp_value(xp_str):
     except: return 0
 
 async def update_supabase(user_data):
-    """Метод для быстрой записи одного юзера в базу"""
     try:
-        # Получаем текущие данные для prev_ полей
         res = sb.table("leaderboard_stats").select("total_score, discord_messages").eq("user_id", user_data["user_id"]).execute()
         if res.data:
             user_data["prev_total_score"] = res.data[0].get("total_score", 0)
@@ -56,69 +49,89 @@ async def update_supabase(user_data):
 
 @bot.event
 async def on_ready():
-    log(f"🚀 Бот запущен как {bot.user}. Слушаю сообщения...")
-    twitter_sync_task.start()
+    log(f"✅ Успешный вход! Аккаунт: {bot.user}. Режим прослушивания активирован.")
+    if not twitter_sync_task.is_running():
+        twitter_sync_task.start()
 
 @bot.event
 async def on_message(message):
-    if message.author.bot and not message.embeds: return
-    if message.channel.id not in THREAD_IDS: return
+    # Селф-бот должен реагировать на сообщения в нужных каналах, включая чужих ботов
+    if message.channel.id not in THREAD_IDS:
+        return
 
     uid = str(message.author.id)
     content = message.content
-    log(f"📩 Новое сообщение от {message.author.name} в {message.channel.id}")
+    log(f"📩 Сообщение в ленте: [{message.author.name}] - {content[:30]}...")
 
-    # 1. Инициализация/Получение данных юзера из базы
+    # 1. Получаем текущие данные юзера
     try:
         res = sb.table("leaderboard_stats").select("*").eq("user_id", uid).execute()
         if res.data:
             user_stats = res.data[0]
         else:
+            # Сбор базовой информации о юзере (avatar/roles)
+            avatar_url = str(message.author.avatar.url) if message.author.avatar else None
+            roles = [r.name for r in message.author.roles[1:]] if hasattr(message.author, 'roles') else []
+            
             user_stats = {
                 "user_id": uid, "username": message.author.name,
-                "avatar_url": str(message.author.display_avatar.url),
+                "avatar_url": avatar_url,
                 "discord_messages": 0, "total_score": 0, "twitter_posts": 0,
-                "twitter_handle": "not_linked", "discord_roles": [r.name for r in message.author.roles[1:]] if hasattr(message.author, 'roles') else []
+                "twitter_handle": "not_linked", "discord_roles": roles
             }
-    except: return
+    except Exception as e:
+        log(f"⚠️ Ошибка инициализации юзера: {e}")
+        return
 
-    # 2. Обработка XP из Эмбедов (если пишет бот)
+    # 2. Обработка XP из Эмбедов (если пишет бот или системное сообщение)
     if message.embeds:
         for embed in message.embeds:
-            search_text = f"{embed.description} " + " ".join([f.value for f in embed.fields])
+            # Собираем весь текст из эмбеда для поиска
+            desc = embed.description or ""
+            fields_text = " ".join([f.value for f in embed.fields]) if embed.fields else ""
+            search_text = f"{desc} {fields_text}"
+            
             xp_match = re.search(r'([\d\.,]+[KM]?)\s?/\s?[\d\.,]+[KM]?\s?XP', search_text)
             if xp_match:
                 mention = re.search(r'<@!?(\d+)>', search_text)
                 target_uid = mention.group(1) if mention else uid
                 xp_val = parse_xp_value(xp_match.group(1))
+                
+                # Если XP в эмбеде больше, чем у нас в базе — обновляем
                 if xp_val > user_stats.get("total_score", 0):
-                    user_stats["total_score"] = xp_val
+                    # Если таргет — другой человек, подтягиваем его данные отдельно
+                    if target_uid != uid:
+                        res_target = sb.table("leaderboard_stats").select("*").eq("user_id", target_uid).execute()
+                        if res_target.data:
+                            target_stats = res_target.data[0]
+                            target_stats["total_score"] = xp_val
+                            await update_supabase(target_stats)
+                    else:
+                        user_stats["total_score"] = xp_val
 
-    # 3. Обычный счетчик сообщений
+    # 3. Счетчик сообщений (только для живых людей, не ботов)
     if not message.author.bot:
         user_stats["discord_messages"] += 1
-        # Минимум XP по формуле сообщений
+        # Базовое начисление XP (минимум 10 за сообщение)
         user_stats["total_score"] = max(user_stats["discord_messages"] * 10, user_stats.get("total_score", 0))
 
-    # 4. Поиск ссылок на твиты (складываем в очередь)
+    # 4. Поиск ссылок на твиты
     links = re.findall(r'https?://(?:twitter\.com|x\.com|vxtwitter\.com|fxtwitter\.com)/\w+/status/(\d+)', content)
     for t_id in links:
         pending_tweets.append((uid, f"https://x.com/i/status/{t_id}"))
 
-    # Обновляем в Supabase
+    # Обновляем данные текущего автора
     await update_supabase(user_stats)
 
 @tasks.loop(minutes=30)
 async def twitter_sync_task():
-    """Фоновая задача: раз в 30 минут обновляет метрики для всех новых ссылок"""
     global pending_tweets
     if not pending_tweets: return
     
-    log(f"🐦 Синхронизация Twitter для {len(pending_tweets)} ссылок...")
+    log(f"🐦 Обновление метрик Twitter для {len(pending_tweets)} ссылок...")
     tw_key = os.getenv('SOCIALDATA_KEY')
     
     async with aiohttp.ClientSession() as session:
-        # Копируем и очищаем очередь
         current_batch = pending_tweets[:]
         pending_tweets = []
         
@@ -133,7 +146,6 @@ async def twitter_sync_task():
                         data = await resp.json()
                         u = data.get('user') or data.get('author') or {}
                         
-                        # Обновляем статы в базе
                         res = sb.table("leaderboard_stats").select("*").eq("user_id", uid).execute()
                         if res.data:
                             stats = res.data[0]
@@ -143,7 +155,8 @@ async def twitter_sync_task():
                             stats["twitter_handle"] = u.get('screen_name') or u.get('username') or stats["twitter_handle"]
                             sb.table("leaderboard_stats").upsert(stats, on_conflict="user_id").execute()
             except: pass
-            await asyncio.sleep(1) # Защита от лимитов
+            await asyncio.sleep(2) # Большая пауза для безопасности селф-бота
 
 if __name__ == "__main__":
+    # Запуск через токен пользователя
     bot.run(os.getenv('DISCORD_TOKEN'))
