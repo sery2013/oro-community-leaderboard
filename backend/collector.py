@@ -22,7 +22,9 @@ THREAD_IDS = [
     "1372149550793490505",
     "1372149324192153620",
     "1372149873188536330",
-    "1372242189240897596"
+    "1372242189240897596",
+    "1389273374748049439",  # ✅ Добавлено
+    "1351488556924932128"   # ✅ Добавлено
 ]
 DAYS_BACK = 1
 TARGET_DATE = datetime.now(timezone.utc) - timedelta(days=DAYS_BACK)
@@ -47,9 +49,7 @@ async def fetch_tweet(session, tweet_info, api_key):
     tweet_id = id_match.group(1) if id_match else None
     if not tweet_id:
         return uid, 0, 0, 0, "Unknown", None
-    
     api_url = f"https://api.socialdata.tools/twitter/tweets/{tweet_id}"
-    
     try:
         async with session.get(api_url, headers={"Authorization": f"Bearer {api_key}"}, timeout=5) as resp:
             if resp.status == 200:
@@ -59,13 +59,12 @@ async def fetch_tweet(session, tweet_info, api_key):
                     twitter_handle = data['user']['screen_name']
                 elif 'author' in data and 'username' in data['author']:
                     twitter_handle = data['author']['username']
-                
-                return (uid, 
-                        data.get('favorite_count', 0), 
-                        data.get('views_count', 0), 
-                        data.get('reply_count', 0), 
-                        "Found",
-                        twitter_handle)
+                return (uid,
+                    data.get('favorite_count', 0),
+                    data.get('views_count', 0),
+                    data.get('reply_count', 0),
+                    "Found",
+                    twitter_handle)
             return uid, 0, 0, 0, "Error", None
     except:
         return uid, 0, 0, 0, "Timeout", None
@@ -101,7 +100,7 @@ def get_discord_data():
                 r = requests.get(url, headers=headers, timeout=10)
                 if r.status_code != 200:
                     break
-                    
+                
                 msgs = r.json()
                 if not msgs:
                     break
@@ -115,7 +114,6 @@ def get_discord_data():
                     uid = m['author']['id']
                     content = m.get('content', '')
                     
-                    # Обработка embeds (для XP)
                     if m.get('embeds'):
                         for embed in m['embeds']:
                             search_text = embed.get('description', '')
@@ -152,7 +150,6 @@ def get_discord_data():
                                     if xp_val > user_stats[target_uid].get("total_score", 0):
                                         user_stats[target_uid]["total_score"] = xp_val
                     
-                    # Инициализация пользователя
                     if uid not in user_stats:
                         avatar = m['author'].get('avatar')
                         user_stats[uid] = {
@@ -173,15 +170,12 @@ def get_discord_data():
                             "prev_discord_messages": 0
                         }
                     
-                    # Считаем сообщения Discord
                     user_stats[uid]["discord_messages"] += 1
                     user_stats[uid]["channels"].add(tid)
                     
-                    # ✅ ИСПРАВЛЕННЫЙ regex для ссылок на твиты (без пробелов!)
                     links = re.findall(r'https?://(?:twitter\.com|x\.com|vxtwitter\.com|fxtwitter\.com)/\w+/status/\d+', content)
                     for l in links:
                         tweet_list.append((uid, l))
-                        log(f"   🔗 Найдена ссылка на твит: {l}")
                     
                     last_id = m['id']
                     count += 1
@@ -206,6 +200,7 @@ def get_discord_data():
 
 async def main():
     log("🚀 Запуск процесса...")
+    
     s_url = os.getenv("SUPABASE_URL")
     s_key = os.getenv("SUPABASE_KEY")
     tw_key = os.getenv('SOCIALDATA_KEY')
@@ -227,9 +222,6 @@ async def main():
     
     users, tweets = get_discord_data()
     
-    # ✅ Лог количества найденных твитов
-    log(f"📊 Найдено ссылок на твиты: {len(tweets)}")
-    
     if tweets:
         log("🐦 Запрос данных из Twitter...")
         async with aiohttp.ClientSession() as session:
@@ -250,8 +242,6 @@ async def main():
                             log(f"   ✅ Handle для {uid}: @{twitter_handle}")
                 
                 log(f"⏳ Прогресс: {min(i + 10, len(tweets))} / {len(tweets)}")
-    else:
-        log("⚠️ Твиты не найдены в сообщениях Discord")
     
     payload = []
     for uid, info in users.items():
