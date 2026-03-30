@@ -6,14 +6,13 @@ def log(msg):
     print(msg)
     sys.stdout.flush()
 
-# ТВОЙ ID ДЛЯ КОНТРОЛЯ В ЛОГАХ
+# ТВОЙ ID ДЛЯ КОНТРОЛЯ
 MY_DISCORD_ID = "829735798173728789" 
 
 GUILD_ID = "1349045850331938826"
 CONTENT_THREAD = "1389273374748049439"   
-XP_SOURCE_THREAD = "1351492950768619552" 
 
-# Список "родительских" каналов
+# Все твои основные каналы (General, RU, UA, NG, CN и т.д.)
 THREAD_IDS = [
     "1351487907042431027", "1351488160206426227", "1351488253332557867", 
     "1351492950768619552", "1367864741548261416", "1371904712001065000", 
@@ -23,16 +22,16 @@ THREAD_IDS = [
     "1351488556924932128", "1389273374748049439"
 ]
 
-DAYS_BACK = 3
+DAYS_BACK = 2
 TARGET_DATE = datetime.now(timezone.utc) - timedelta(days=DAYS_BACK)
 
 def get_discord_data():
     token = os.getenv('DISCORD_TOKEN')
     headers = {"Authorization": token}
-    user_stats, tweet_list, processed_tweets = {}, [], set()
+    user_stats, tweet_list = {}, []
     
-    # 🕵️ ШАГ 1: Находим все активные под-ветки (Threads) во всем сервере
-    all_target_channels = list(set(THREAD_IDS))
+    # Собираем список всех активных тредов на сервере
+    targets = list(set(THREAD_IDS))
     try:
         res = requests.get(f"https://discord.com/api/v10/guilds/{GUILD_ID}/threads/active", headers=headers)
         if res.status_code == 200:
@@ -40,14 +39,12 @@ def get_discord_data():
             for t in active_threads:
                 p_id = str(t.get('parent_id'))
                 if p_id in THREAD_IDS:
-                    all_target_channels.append(str(t.get('id')))
-                    log(f"🧵 Обнаружен активный тред: '{t.get('name')}' в канале {p_id}")
-    except Exception as e:
-        log(f"⚠️ Ошибка поиска тредов: {e}")
+                    targets.append(str(t.get('id')))
+                    log(f"🧵 Найден активный тред: {t.get('name')} (в канале {p_id})")
+    except: pass
 
-    # 📡 ШАГ 2: Собираем сообщения из всех найденных каналов и тредов
-    for tid in set(all_target_channels):
-        log(f"📡 Сбор данных из: {tid}")
+    for tid in set(targets):
+        log(f"📡 Сканирую: {tid}")
         last_id, count = None, 0
         while True:
             url = f"https://discord.com/api/v10/channels/{tid}/messages?limit=100"
@@ -56,7 +53,10 @@ def get_discord_data():
             r = requests.get(url, headers=headers)
             if r.status_code == 429:
                 time.sleep(int(r.json().get('retry_after', 2))); continue
+            if r.status_code == 403:
+                log(f"🚫 Нет доступа к каналу {tid}"); break
             if r.status_code != 200: break
+            
             msgs = r.json()
             if not msgs: break
             
@@ -66,7 +66,7 @@ def get_discord_data():
                 
                 uid = m['author']['id']
                 if uid == MY_DISCORD_ID:
-                    log(f"   🎯 ТВОЁ СООБЩЕНИЕ: {dt} в {tid}")
+                    log(f"   🎯 ТВОЁ СООБЩЕНИЕ ({dt}) в {tid}")
 
                 if uid not in user_stats:
                     user_stats[uid] = {
@@ -80,20 +80,7 @@ def get_discord_data():
                 last_id = m['id']
                 count += 1
             if last_id == "STOP": break
-        if count > 0: log(f"✅ Канал {tid}: найдено {count} сообщений")
-
-    log("🛡️ Обогащение профилей...")
-    for uid in user_stats:
-        try:
-            r = requests.get(f"https://discord.com/api/v10/guilds/{GUILD_ID}/members/{uid}", headers=headers)
-            if r.status_code == 200:
-                d = r.json()
-                user_stats[uid]["discord_joined_at"] = d.get('joined_at')
-                user_stats[uid]["discord_roles"] = d.get('roles', ["Member"])
-            else:
-                user_stats[uid]["discord_joined_at"] = datetime.now(timezone.utc).isoformat()
-                user_stats[uid]["discord_roles"] = ["Contributor"]
-        except: pass
+        if count > 0: log(f"✅ Готово {tid}: {count} сообщений")
     
     return user_stats, tweet_list
 
@@ -103,14 +90,20 @@ async def main():
     
     payload = []
     for uid, info in users.items():
-        info["total_score"] = info["discord_messages"] * 10 # Базовый расчет XP
+        # Базовая формула XP (можно менять)
+        info["total_score"] = info["discord_messages"] * 10
         payload.append(info)
 
     if payload:
         payload.sort(key=lambda x: x['discord_messages'], reverse=True)
+        log(f"📊 ИТОГО: Собрано {len(payload)} участников.")
         log("📊 ТОП-10:")
         for u in payload[:10]: log(f"👤 {u['username']} | MSG: {u['discord_messages']}")
-        sb.table("leaderboard_stats").upsert(payload, on_conflict="user_id").execute()
-        log("✅ БАЗА ОБНОВЛЕНА")
+        
+        try:
+            sb.table("leaderboard_stats").upsert(payload, on_conflict="user_id").execute()
+            log("✅ БАЗА ОБНОВЛЕНА УСПЕШНО")
+        except Exception as e:
+            log(f"❌ ОШИБКА SUPABASE: {e}")
 
 if __name__ == "__main__": asyncio.run(main())
