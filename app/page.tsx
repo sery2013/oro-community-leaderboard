@@ -144,7 +144,6 @@ export default function Leaderboard() {
     if (e.target === e.currentTarget) setSelectedUser(null);
   };
 
-  // ✅ Функция перезагрузки страницы
   const handleRefresh = () => {
     window.location.reload();
   };
@@ -172,7 +171,6 @@ export default function Leaderboard() {
           <div className="branding-banner">
             <div className="branding-content">
               <div className="status-dot"></div>
-              {/* ✅ КЛИКАБЕЛЬНЫЙ ЗАГОЛОВОК */}
               <h1 className="main-title clickable-title" onClick={handleRefresh} title="Click to refresh">
                 ORO AI SOCIAL RANKING
               </h1>
@@ -613,14 +611,15 @@ export default function Leaderboard() {
           letter-spacing: 4px;
           margin: 0;
           flex-grow: 1;
-          background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FF8C00 100%);
+          /* ✅ ЯРКИЙ ЗОЛОТОЙ ГРАДИЕНТ */
+          background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FFD700 100%);
           background-size: 200% auto;
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
           animation: shimmer 4s linear infinite;
           text-shadow: none;
-          filter: drop-shadow(0 0 20px rgba(255,165,0,0.3));
+          filter: drop-shadow(0 0 25px rgba(255,215,0,0.5));
         }
         
         @keyframes shimmer {
@@ -628,7 +627,6 @@ export default function Leaderboard() {
           100% { background-position: 200% center; }
         }
 
-        /* ✅ СТИЛИ ДЛЯ КЛИКАБЕЛЬНОГО ЗАГОЛОВКА */
         .clickable-title {
           cursor: pointer;
           transition: all 0.3s ease;
@@ -636,7 +634,7 @@ export default function Leaderboard() {
         }
 
         .clickable-title:hover {
-          filter: drop-shadow(0 0 30px rgba(255,165,0,0.6));
+          filter: drop-shadow(0 0 35px rgba(255,215,0,0.7));
           transform: scale(1.02);
         }
 
@@ -653,7 +651,7 @@ export default function Leaderboard() {
         
         .update-badge {
           background: rgba(255,165,0,0.2);
-          color: #FFA500;
+          color: #FFD700;
           padding: 4px 12px;
           border-radius: 6px;
           font-size: 0.65rem;
@@ -665,7 +663,7 @@ export default function Leaderboard() {
         .status-label {
           font-size: 0.7rem;
           letter-spacing: 2px;
-          color: rgba(255,255,255,0.5);
+          color: rgba(255,255,255,0.6);
           font-weight: 500;
           text-transform: uppercase;
         }
@@ -777,7 +775,7 @@ export default function Leaderboard() {
           gap: 40px;
           min-width: 480px;
           border-right: 1px solid rgba(255,165,0,0.2);
-          background: rgba(0,0,0,0.15);
+          background: rgba(0,0,0,0.2);
         }
         
         .rank-container {
@@ -792,6 +790,7 @@ export default function Leaderboard() {
           font-weight: 300; 
         }
         
+        /* ✅ ЯРКИЙ НОМЕР РАНГА */
         .rank-number { 
           font-size: 2.5rem; 
           font-weight: 700; 
@@ -799,6 +798,7 @@ export default function Leaderboard() {
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
+          filter: drop-shadow(0 0 15px rgba(255,215,0,0.4));
         }
         
         .user-profile {
@@ -860,13 +860,14 @@ export default function Leaderboard() {
           gap: 8px;
         }
         
+        /* ✅ ЯРКОЕ ИМЯ ПОЛЬЗОВАТЕЛЯ */
         .display-name {
           margin: 0;
           font-size: 1.5rem;
           font-weight: 700;
           color: #fff;
           letter-spacing: -0.5px;
-          text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+          text-shadow: 0 2px 15px rgba(255,255,255,0.3);
         }
         
         .delta-container {
@@ -956,21 +957,22 @@ export default function Leaderboard() {
         }
         
         .stat-row.sub { 
-          opacity: 0.7; 
+          opacity: 0.75; 
           margin-top: -1px; 
         }
         
+        /* ✅ ЯРКИЕ ЦИФРЫ МЕТРИК */
         .stat-val { 
           font-size: 1.1rem; 
           font-weight: 700; 
           color: #fff;
-          text-shadow: 0 2px 8px rgba(0,0,0,0.3);
+          text-shadow: 0 2px 12px rgba(255,255,255,0.4);
         }
         
         .stat-suffix { 
           font-size: 0.6rem; 
           letter-spacing: 1px;
-          color: rgba(255,255,255,0.5);
+          color: rgba(255,255,255,0.6);
         }
         
         .stat-dot-small { 
@@ -1007,7 +1009,7 @@ export default function Leaderboard() {
           align-items: baseline; 
           gap: 6px; 
           margin-top: 4px; 
-          opacity: 0.8; 
+          opacity: 0.85; 
         }
         
         .stat-dot-small.channels { 
@@ -1015,24 +1017,26 @@ export default function Leaderboard() {
           color: #3b82f6;
         }
         
+        /* ✅ ЯРКИЕ ЗАГОЛОВКИ МЕТРИК */
         .metric-label {
           display: block;
           font-size: 0.6rem;
-          color: rgba(255,255,255,0.5);
+          color: rgba(255,255,255,0.7);
           letter-spacing: 2px;
           margin-bottom: 8px;
           text-transform: uppercase;
         }
         
         .metric-box.total {
-          background: linear-gradient(135deg, rgba(255,165,0,0.2), rgba(255,140,0,0.1));
+          background: linear-gradient(135deg, rgba(255,165,0,0.25), rgba(255,140,0,0.15));
           border-radius: 14px;
           padding: 15px 25px;
           text-align: right;
-          border: 2px solid rgba(255,165,0,0.3);
-          box-shadow: 0 4px 15px rgba(255,165,0,0.1);
+          border: 2px solid rgba(255,165,0,0.4);
+          box-shadow: 0 4px 20px rgba(255,165,0,0.15);
         }
         
+        /* ✅ ЯРКИЙ XP */
         .total-score-value {
           font-size: 2.2rem;
           font-weight: 700;
@@ -1041,7 +1045,7 @@ export default function Leaderboard() {
           -webkit-text-fill-color: transparent;
           background-clip: text;
           text-shadow: none;
-          filter: drop-shadow(0 0 10px rgba(255,165,0,0.3));
+          filter: drop-shadow(0 0 15px rgba(255,215,0,0.4));
         }
         
         .server-stats-panel {
@@ -1050,18 +1054,18 @@ export default function Leaderboard() {
           justify-content: space-around;
           gap: 20px;
           padding: 25px 30px;
-          background: linear-gradient(135deg, rgba(255,140,0,0.15) 0%, rgba(255,165,0,0.08) 100%);
-          border: 2px solid rgba(255,165,0,0.3);
+          background: linear-gradient(135deg, rgba(255,140,0,0.18) 0%, rgba(255,165,0,0.1) 100%);
+          border: 2px solid rgba(255,165,0,0.35);
           border-radius: 16px;
           margin-bottom: 24px;
           backdrop-filter: blur(15px);
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+          box-shadow: 0 8px 32px rgba(0,0,0,0.25);
         }
         
         .server-stats-panel:hover {
-          border-color: rgba(255,165,0,0.5);
-          box-shadow: 0 12px 40px rgba(255,140,0,0.15);
+          border-color: rgba(255,165,0,0.6);
+          box-shadow: 0 12px 40px rgba(255,140,0,0.2);
           transform: translateY(-2px);
         }
         
@@ -1082,34 +1086,36 @@ export default function Leaderboard() {
           gap: 2px;
         }
         
+        /* ✅ ЯРКИЕ ЗАГОЛОВКИ СТАТИСТИКИ */
         .stat-label {
           font-size: 0.65rem;
-          color: rgba(255,255,255,0.5);
+          color: rgba(255,255,255,0.7);
           letter-spacing: 1px;
           text-transform: uppercase;
         }
         
+        /* ✅ ЯРКИЕ ЦИФРЫ СТАТИСТИКИ */
         .stat-value {
-          font-size: 1.4rem;
+          font-size: 1.5rem;
           font-weight: 700;
           color: #fff;
-          text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+          text-shadow: 0 2px 15px rgba(255,255,255,0.4);
         }
         
         .stat-value.highlight {
           color: #10b981;
-          text-shadow: 0 0 15px rgba(16,185,129,0.4);
+          text-shadow: 0 0 20px rgba(16,185,129,0.5);
         }
         
         .stat-sub {
           font-size: 0.75rem;
-          color: rgba(255,255,255,0.5);
+          color: rgba(255,255,255,0.6);
         }
         
         .stat-divider {
           width: 1px;
           height: 40px;
-          background: linear-gradient(to bottom, transparent, rgba(255,165,0,0.3), transparent);
+          background: linear-gradient(to bottom, transparent, rgba(255,165,0,0.4), transparent);
         }
         
         @media (max-width: 900px) {
@@ -1279,10 +1285,10 @@ export default function Leaderboard() {
         
         .stat-group-modal h3 {
           font-size: 0.7rem;
-          color: #FFA500;
+          color: #FFD700;
           letter-spacing: 2px;
           margin-bottom: 15px;
-          border-bottom: 1px solid rgba(255,165,0,0.3);
+          border-bottom: 1px solid rgba(255,165,0,0.4);
           padding-bottom: 10px;
           text-transform: uppercase;
         }
@@ -1302,8 +1308,8 @@ export default function Leaderboard() {
         }
         
         .modal-total-score {
-          background: linear-gradient(135deg, rgba(255,165,0,0.15), rgba(255,140,0,0.08));
-          border: 2px solid rgba(255,165,0,0.3);
+          background: linear-gradient(135deg, rgba(255,165,0,0.2), rgba(255,140,0,0.1));
+          border: 2px solid rgba(255,165,0,0.4);
           border-radius: 20px;
           padding: 25px 30px;
           display: flex;
@@ -1331,6 +1337,7 @@ export default function Leaderboard() {
           -webkit-background-clip: text;
           -webkit-text-fill-color: transparent;
           background-clip: text;
+          filter: drop-shadow(0 0 15px rgba(255,215,0,0.4));
         }
         
         .download-btn {
