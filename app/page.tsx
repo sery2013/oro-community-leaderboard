@@ -1125,4 +1125,28 @@ export default function Leaderboard() {
           color: #000;
           text-decoration: none;
           opacity: 0.8;
-    
+          transition: 0.2s;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .f-link:hover {
+          opacity: 1;
+        }
+        .f-sep {
+          color: rgba(0,0,0,0.3);
+        }
+        @media (max-width: 1100px) {
+          .card-identity {
+            min-width: auto;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 20px;
+            border-right: none;
+            border-bottom: 1px solid rgba(0,0,0,0.2);
+          }
+        }
+      `}</style>
+    </div>
+  );
+}
