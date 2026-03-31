@@ -180,6 +180,7 @@ export default function Leaderboard() {
       <div className="glow glow-1"></div>
       <div className="glow glow-2"></div>
       <div className="grid-overlay"></div>
+      
       <div className="main-content">
         <header className="header-section">
           <div className="branding-banner">
@@ -192,6 +193,7 @@ export default function Leaderboard() {
               </div>
             </div>
           </div>
+          
           <div className="action-bar">
             <div className="accent-line"></div>
             <div className="search-wrapper">
@@ -319,21 +321,12 @@ export default function Leaderboard() {
                             </svg>
                             <span className="join-date">{formatDate(user.discord_joined_at)}</span>
                           </div>
-                          <a
-                            href={user.twitter_handle ? `https://x.com/${user.twitter_handle}` : '#'}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={`meta-badge twitter-link ${!user.twitter_handle ? 'disabled' : ''}`}
-                            onClick={(e) => {
-                              if (!user.twitter_handle) e.preventDefault();
-                              e.stopPropagation();
-                            }}
-                          >
+                          <div className="meta-badge twitter-link">
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
                             </svg>
                             <span>@{user.twitter_handle || 'not_linked'}</span>
-                          </a>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -343,12 +336,10 @@ export default function Leaderboard() {
                       <div className="metric-box">
                         <span className="metric-label">DISCORD MESSAGES</span>
                         <div className="stat-row">
-                          <span className="stat-dot-small messages" style={{ background: '#000', boxShadow: '0 0 5px #000' }}></span>
                           <span className="stat-val">{user.discord_messages || 0}</span>
                           <span className="stat-suffix">MSG</span>
                         </div>
                         <div className="channel-activity-row">
-                          <span className="stat-dot-small channels"></span>
                           <span className="stat-val">{user.channels_count || 0}</span>
                           <span className="stat-suffix">ACTIVE CHANNELS</span>
                         </div>
@@ -357,24 +348,12 @@ export default function Leaderboard() {
                         <span className="metric-label">TWITTER IMPACT</span>
                         <div className="twitter-stats-column">
                           <div className="stat-row">
-                            <span className="stat-dot-small posts" style={{ background: '#000', boxShadow: '0 0 5px #000' }}></span>
                             <span className="stat-val">{user.twitter_posts || 0}</span>
                             <span className="stat-suffix">POSTS</span>
                           </div>
                           <div className="stat-row sub">
-                            <span className="stat-dot-small likes"></span>
-                            <span className="stat-val">{user.twitter_likes || 0}</span>
-                            <span className="stat-suffix">LIKES</span>
-                          </div>
-                          <div className="stat-row sub">
-                            <span className="stat-dot-small views"></span>
                             <span className="stat-val">{formatCompactNumber(user.twitter_views)}</span>
                             <span className="stat-suffix">VIEWS</span>
-                          </div>
-                          <div className="stat-row sub">
-                            <span className="stat-dot-small replies"></span>
-                            <span className="stat-val">{user.twitter_replies || 0}</span>
-                            <span className="stat-suffix">REPLIES</span>
                           </div>
                         </div>
                       </div>
@@ -423,9 +402,6 @@ export default function Leaderboard() {
             </a>
             <span className="f-sep">|</span>
             <a href="https://x.com/kaye_moni" target="_blank" rel="noopener" className="f-link dev">
-              <svg className="x-logo" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-              </svg>
               <span>Developer: @kaye_moni</span>
             </a>
           </div>
@@ -439,7 +415,6 @@ export default function Leaderboard() {
             <div className="modal-header">
               <div className="modal-avatar-wrapper">
                 <img src={selectedUser.avatar_url} className="modal-avatar" alt="" />
-                <div className="modal-avatar-glow"></div>
               </div>
               <div className="modal-titles">
                 <div className="modal-rank-badge">RANK #{users.findIndex(u => u.user_id === selectedUser.user_id) + 1}</div>
@@ -459,22 +434,12 @@ export default function Leaderboard() {
                     <span>Active Channels</span>
                     <span className="val">{selectedUser.channels_count || 0}</span>
                   </div>
-                  <div className="stat-item-modal">
-                    <span>Discord Roles</span>
-                    <span className="val">{selectedUser.discord_roles?.length || 0}</span>
-                  </div>
                 </div>
                 <div className="stat-group-modal">
                   <h3>X (TWITTER) IMPACT</h3>
                   <div className="stat-item-modal">
                     <span>Total Posts</span>
                     <span className="val">{selectedUser.twitter_posts || 0}</span>
-                  </div>
-                  <div className="stat-item-modal">
-                    <span>Engagement Index</span>
-                    <span className="val">
-                      {Math.round(((selectedUser.twitter_likes + selectedUser.twitter_replies) / (selectedUser.twitter_posts || 1)) * 10) / 10}
-                    </span>
                   </div>
                   <div className="stat-item-modal">
                     <span>Total Impressions</span>
@@ -485,16 +450,10 @@ export default function Leaderboard() {
               <div className="modal-total-score">
                 <div className="score-info">
                   <span className="score-label">AGGREGATED NETWORK POWER</span>
-                  <span className="score-sub">Verified on-chain contribution</span>
                 </div>
                 <div className="score-value">{Math.floor(selectedUser.total_score)} XP</div>
               </div>
               <button className="download-btn" onClick={downloadCard}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                  <polyline points="7 10 12 15 17 10"></polyline>
-                  <line x1="12" y1="15" x2="12" y2="3"></line>
-                </svg>
                 DOWNLOAD PNG
               </button>
             </div>
@@ -504,9 +463,10 @@ export default function Leaderboard() {
 
       <style jsx global>{`
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500;700&display=swap');
+        
         body {
           margin: 0;
-          background: linear-gradient(135deg, #FF8C00 0%, #FFA500 50%, #FFB347 100%);
+          background: #FF8C00;
           background-image: 
             url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
             linear-gradient(135deg, #FF8C00 0%, #FFA500 50%, #FFB347 100%);
@@ -515,6 +475,7 @@ export default function Leaderboard() {
           font-family: 'Space Grotesk', sans-serif;
           overflow-x: hidden;
         }
+
         .container {
           position: relative;
           min-height: 100vh;
@@ -522,42 +483,34 @@ export default function Leaderboard() {
           display: flex;
           justify-content: center;
         }
+
         .grid-overlay {
           position: fixed;
           top: 0; left: 0; width: 100%; height: 100%;
-          background-image: radial-gradient(rgba(0,0,0,0.15) 1px, transparent 1px);
+          background-image: radial-gradient(rgba(0,0,0,0.1) 1px, transparent 1px);
           background-size: 40px 40px;
           z-index: 0;
           pointer-events: none;
         }
-        .glow {
-          position: fixed;
-          width: 800px;
-          height: 800px;
-          filter: blur(160px);
-          opacity: 0.25;
-          z-index: 0;
-          pointer-events: none;
-        }
-        .glow-1 { top: -200px; left: -100px; background: #FFD700; }
-        .glow-2 { bottom: -200px; right: -100px; background: #FF6B35; }
+
         .main-content {
           width: 100%;
           max-width: 1400px;
           z-index: 10;
         }
-        .header-section { margin-bottom: 50px; }
+
         .branding-banner {
-          display: block;
           border: 2px solid rgba(0,0,0,0.3);
           background: rgba(255,255,255,0.15);
           padding: 25px 40px;
           border-radius: 20px;
           backdrop-filter: blur(12px);
-          transition: 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
           margin-bottom: 25px;
           box-shadow: 0 10px 30px rgba(0,0,0,0.05);
         }
+
+        .branding-content { display: flex; align-items: center; gap: 20px; }
+
         .main-title {
           font-size: 2.2rem;
           font-weight: 800;
@@ -571,9 +524,11 @@ export default function Leaderboard() {
           animation: shine 4s linear infinite;
           text-transform: uppercase;
         }
-        @keyframes shine {
-          to { background-position: 200% center; }
-        }
+
+        @keyframes shine { to { background-position: 200% center; } }
+
+        .status-info { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+
         .update-badge {
           background: #000;
           color: #FF8C00;
@@ -581,137 +536,124 @@ export default function Leaderboard() {
           border-radius: 6px;
           font-size: 0.7rem;
           font-weight: 800;
-          border: 1px solid #000;
-          box-shadow: 0 0 10px rgba(0,0,0,0.2);
           letter-spacing: 1px;
         }
-        .status-label {
-          font-size: 0.7rem;
-          letter-spacing: 2px;
-          color: rgba(0,0,0,0.8);
-          font-weight: 700;
-        }
+
+        .status-label { font-size: 0.7rem; letter-spacing: 2px; font-weight: 700; opacity: 0.8; }
+
+        .action-bar { display: flex; align-items: center; gap: 30px; margin-bottom: 30px; }
+        .accent-line { height: 2px; flex-grow: 1; background: rgba(0,0,0,0.2); }
+        .search-wrapper { position: relative; width: 450px; }
+        .search-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); opacity: 0.5; }
+
         .search-input {
           width: 100%;
           background: rgba(255,255,255,0.25);
-          border: 2px solid rgba(0,0,0,0.3);
+          border: 2px solid rgba(0,0,0,0.2);
           padding: 16px 20px 16px 55px;
           border-radius: 14px;
-          color: #000;
           font-size: 1rem;
           transition: 0.3s;
-          backdrop-filter: blur(5px);
         }
-        .search-input:focus {
-          border-color: #000;
-          background: rgba(255,255,255,0.4);
-          box-shadow: 0 0 20px rgba(255,255,255,0.3);
+        .search-input:focus { background: rgba(255,255,255,0.4); border-color: #000; outline: none; }
+
+        .server-stats-panel {
+          display: flex;
+          justify-content: space-around;
+          background: rgba(255,255,255,0.15);
+          border: 2px solid rgba(0,0,0,0.1);
+          padding: 25px;
+          border-radius: 20px;
+          margin-bottom: 30px;
+          backdrop-filter: blur(10px);
         }
+
+        .stat-item { display: flex; align-items: center; gap: 15px; }
+        .stat-label { display: block; font-size: 0.7rem; opacity: 0.6; text-transform: uppercase; letter-spacing: 1px; }
+        .stat-value { font-size: 1.4rem; font-weight: 700; }
+        .stat-divider { width: 1px; height: 40px; background: rgba(0,0,0,0.1); }
+
+        .stats-grid { display: flex; flex-direction: column; gap: 16px; }
+
         .contributor-card {
           cursor: pointer;
           display: flex;
-          background: rgba(255,255,255,0.1);
+          background: rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(10px);
           border: 1px solid rgba(255, 255, 255, 0.2);
           border-radius: 24px;
           overflow: hidden;
-          opacity: 0;
-          transform: translateY(20px);
-          animation: fadeInUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
-          animation-delay: calc(var(--i) * 0.08s);
           transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+          animation: fadeInUp 0.5s ease forwards;
         }
+
         .contributor-card:hover {
           transform: translateY(-5px) scale(1.01);
           background: rgba(255, 255, 255, 0.25);
           border-color: #000;
-          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15), inset 0 0 15px rgba(255,255,255,0.3);
-          z-index: 5;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1), inset 0 0 15px rgba(255,255,255,0.2);
         }
-        .avatar-ring {
-          position: absolute;
-          inset: -4px;
-          border: 2px dashed rgba(0,0,0,0.2);
-          border-radius: 22px;
-          animation: rotateAvatar 15s linear infinite;
-        }
-        @keyframes rotateAvatar {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
+
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .card-identity { padding: 30px; display: flex; align-items: center; gap: 30px; min-width: 450px; border-right: 1px solid rgba(0,0,0,0.1); }
+        .rank-number { font-size: 2.5rem; font-weight: 800; }
+        .avatar-wrapper { position: relative; width: 65px; height: 65px; }
+        .user-avatar { width: 100%; height: 100%; border-radius: 18px; border: 2px solid #000; }
+        .roles-badge { position: absolute; bottom: -5px; right: -5px; background: #000; color: #FF8C00; font-size: 0.7rem; padding: 2px 6px; border-radius: 6px; font-weight: 700; }
+        
+        .display-name { font-size: 1.4rem; font-weight: 700; margin: 0; }
+        .user-meta { display: flex; gap: 10px; margin-top: 10px; }
+        .meta-badge { background: rgba(0,0,0,0.05); padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 600; display: flex; align-items: center; gap: 5px; }
+
+        .card-metrics { flex-grow: 1; padding: 0 30px; display: flex; align-items: center; }
+        .metrics-inner { display: grid; grid-template-columns: 1fr 1fr 1fr; width: 100%; gap: 20px; }
+        .metric-label { font-size: 0.65rem; opacity: 0.5; font-weight: 700; letter-spacing: 1px; display: block; margin-bottom: 5px; }
+        .stat-val { font-size: 1.2rem; font-weight: 700; }
+        .stat-suffix { font-size: 0.7rem; margin-left: 5px; opacity: 0.6; }
+
         .metric-box.total {
           background: rgba(0,0,0,0.05);
-          border-radius: 18px;
           padding: 15px 25px;
+          border-radius: 18px;
           text-align: right;
-          border: 2px solid rgba(0,0,0,0.2);
-          transition: 0.3s;
+          border: 2px solid rgba(0,0,0,0.1);
         }
-        .contributor-card:hover .metric-box.total {
-          background: #000;
-          border-color: #000;
+        .contributor-card:hover .metric-box.total { background: #000; color: #FF8C00; border-color: #000; }
+        .total-score-value { font-size: 2.2rem; font-weight: 800; }
+
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 20px; margin: 40px 0; }
+        .pagination-btn { background: #000; color: #fff; border: none; padding: 12px 25px; border-radius: 12px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+        .pagination-btn:hover:not(:disabled) { transform: scale(1.05); }
+        .pagination-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(10px); display: flex; justify-content: center; align-items: center; z-index: 100; }
+        .modal-content { background: #FFA500; padding: 40px; border-radius: 30px; border: 3px solid #000; width: 90%; max-width: 550px; position: relative; }
+        .close-btn { position: absolute; right: 25px; top: 25px; font-size: 2rem; background: none; border: none; cursor: pointer; }
+        
+        .modal-header { display: flex; align-items: center; gap: 25px; margin-bottom: 30px; }
+        .modal-avatar { width: 80px; height: 80px; border-radius: 20px; border: 3px solid #000; }
+        .modal-rank-badge { background: #000; color: #fff; display: inline-block; padding: 4px 12px; border-radius: 8px; font-weight: 800; margin-bottom: 10px; }
+        
+        .stat-grid-modal { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .stat-group-modal h3 { font-size: 0.8rem; opacity: 0.7; margin-bottom: 15px; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 5px; }
+        .stat-item-modal { display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 600; }
+
+        .modal-total-score { background: #000; color: #FF8C00; padding: 25px; border-radius: 20px; display: flex; justify-content: space-between; align-items: center; }
+        .score-label { font-size: 0.8rem; font-weight: 800; letter-spacing: 1px; }
+        .score-value { font-size: 2.2rem; font-weight: 800; }
+
+        .download-btn { width: 100%; background: #000; color: #fff; border: none; padding: 18px; border-radius: 15px; font-weight: 800; margin-top: 20px; cursor: pointer; transition: 0.2s; }
+        .download-btn:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.2); }
+
+        .footer { padding: 40px 0; border-top: 1px solid rgba(0,0,0,0.1); text-align: center; }
+        .f-link { color: #000; text-decoration: none; font-weight: 700; opacity: 0.7; }
+        
+        @media (max-width: 1100px) {
+          .card-identity { min-width: auto; flex-direction: column; align-items: flex-start; border-right: none; border-bottom: 1px solid rgba(0,0,0,0.1); }
+          .contributor-card { flex-direction: column; }
+          .metrics-inner { grid-template-columns: 1fr 1fr; padding: 20px 0; }
         }
-        .contributor-card:hover .total-score-value,
-        .contributor-card:hover .metric-box.total .metric-label {
-          color: #FF8C00;
-        }
-        .server-stats-panel {
-          background: rgba(255,255,255,0.15);
-          border: 2px solid rgba(0,0,0,0.2);
-          backdrop-filter: blur(15px);
-          box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-        }
-        .pagination {
-          background: rgba(255,255,255,0.15);
-          backdrop-filter: blur(10px);
-          border: 2px solid rgba(0,0,0,0.2);
-        }
-        /* Остальные базовые стили (структура, модалки и т.д.) перенесены из твоего кода без изменений */
-        .status-dot { width: 8px; height: 8px; background: #000; border-radius: 50%; box-shadow: 0 0 10px #000; animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.3; } 100% { opacity: 1; } }
-        .branding-content { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
-        .status-info { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
-        .action-bar { display: flex; align-items: center; gap: 30px; }
-        .accent-line { height: 1px; flex-grow: 1; background: linear-gradient(90deg, #000, rgba(0,0,0,0.3), transparent); }
-        .search-wrapper { position: relative; width: 450px; }
-        .search-icon { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: #000; opacity: 0.7; }
-        .stats-grid { display: flex; flex-direction: column; gap: 16px; }
-        @keyframes fadeInUp { to { opacity: 1; transform: translateY(0); } }
-        .card-identity { padding: 30px 40px; display: flex; align-items: center; gap: 40px; min-width: 480px; border-right: 1px solid rgba(0,0,0,0.1); background: rgba(255,255,255,0.05); }
-        .rank-container { display: flex; align-items: baseline; min-width: 70px; }
-        .rank-hash { color: #000; font-size: 1.2rem; font-weight: 300; }
-        .rank-number { font-size: 2.5rem; font-weight: 700; color: #000; }
-        .user-profile { display: flex; align-items: center; gap: 20px; }
-        .avatar-wrapper { position: relative; width: 65px; height: 65px; }
-        .user-avatar { width: 100%; height: 100%; border-radius: 18px; object-fit: cover; position: relative; z-index: 2; border: 2px solid rgba(0,0,0,0.2); }
-        .roles-badge { position: absolute; bottom: -5px; right: -5px; background: #000; color: #FF8C00; font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 6px; z-index: 10; border: 2px solid #FF8C00; }
-        .name-box { display: flex; flex-direction: column; gap: 8px; }
-        .username-row { display: flex; align-items: center; gap: 8px; }
-        .display-name { margin: 0; font-size: 1.4rem; font-weight: 700; color: #000; letter-spacing: -0.5px; }
-        .delta-container { font-size: 0.75rem; line-height: 1.4; }
-        .delta-row { display: flex; justify-content: flex-start; margin-bottom: 2px; }
-        .value.positive { color: #059669; }
-        .value.negative { color: #DC2626; }
-        .user-meta { display: flex; gap: 8px; flex-wrap: wrap; }
-        .meta-badge { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.2); border: 1px solid rgba(0,0,0,0.2); padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; color: rgba(0,0,0,0.8); text-decoration: none; }
-        .card-metrics { flex-grow: 1; padding: 0 40px; display: flex; align-items: center; }
-        .metrics-inner { display: grid; grid-template-columns: 1.2fr 1.5fr 1.5fr; width: 100%; gap: 20px; }
-        .metric-label { display: block; font-size: 0.6rem; color: rgba(0,0,0,0.6); letter-spacing: 2px; margin-bottom: 8px; text-transform: uppercase; }
-        .stat-val { font-size: 1.1rem; font-weight: 700; color: #000; }
-        .total-score-value { font-size: 2.2rem; font-weight: 700; color: #000; }
-        .server-stats-panel { display: flex; align-items: center; justify-content: space-around; padding: 20px 30px; border-radius: 16px; margin-bottom: 24px; transition: 0.3s; }
-        .stat-item { display: flex; align-items: center; gap: 12px; }
-        .stat-value { font-size: 1.3rem; font-weight: 700; }
-        .stat-divider { width: 1px; height: 40px; background: linear-gradient(to bottom, transparent, rgba(0,0,0,0.2), transparent); }
-        .pagination { display: flex; justify-content: center; align-items: center; gap: 20px; margin: 40px 0 60px; padding: 20px; border-radius: 16px; }
-        .pagination-btn { background: transparent; border: 2px solid rgba(0,0,0,0.2); color: #000; padding: 10px 24px; border-radius: 12px; cursor: pointer; font-weight: 600; transition: 0.2s; }
-        .pagination-btn:hover:not(:disabled) { background: rgba(255,255,255,0.3); border-color: #000; }
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); backdrop-filter: blur(12px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .modal-content { background: #FFA500; width: 100%; max-width: 600px; border-radius: 32px; border: 2px solid rgba(0,0,0,0.3); padding: 40px; position: relative; }
-        .footer { text-align: center; padding: 40px 0; margin-top: 60px; border-top: 2px solid rgba(0,0,0,0.1); }
-        .f-link { color: #000; text-decoration: none; opacity: 0.7; transition: 0.2s; }
-        .f-link:hover { opacity: 1; }
-        @media (max-width: 1100px) { .card-identity { min-width: auto; flex-direction: column; align-items: flex-start; gap: 20px; border-right: none; border-bottom: 1px solid rgba(0,0,0,0.1); } }
       `}</style>
     </div>
   );
