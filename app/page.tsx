@@ -144,6 +144,11 @@ export default function Leaderboard() {
     if (e.target === e.currentTarget) setSelectedUser(null);
   };
 
+  // ✅ Функция перезагрузки страницы
+  const handleRefresh = () => {
+    window.location.reload();
+  };
+
   if (loading) return (
     <div className="loading-screen">
       <div>SYNCHRONIZING NETWORK DATA...</div>
@@ -167,7 +172,10 @@ export default function Leaderboard() {
           <div className="branding-banner">
             <div className="branding-content">
               <div className="status-dot"></div>
-              <h1 className="main-title">ORO AI SOCIAL RANKING</h1>
+              {/* ✅ КЛИКАБЕЛЬНЫЙ ЗАГОЛОВОК */}
+              <h1 className="main-title clickable-title" onClick={handleRefresh} title="Click to refresh">
+                ORO AI SOCIAL RANKING
+              </h1>
               <div className="status-info">
                 <span className="update-badge">{lastUpdate}</span>
                 <span className="status-label">LEADERBOARD DATA UPDATED MANUALLY</span>
@@ -618,6 +626,22 @@ export default function Leaderboard() {
         @keyframes shimmer {
           0% { background-position: 0% center; }
           100% { background-position: 200% center; }
+        }
+
+        /* ✅ СТИЛИ ДЛЯ КЛИКАБЕЛЬНОГО ЗАГОЛОВКА */
+        .clickable-title {
+          cursor: pointer;
+          transition: all 0.3s ease;
+          user-select: none;
+        }
+
+        .clickable-title:hover {
+          filter: drop-shadow(0 0 30px rgba(255,165,0,0.6));
+          transform: scale(1.02);
+        }
+
+        .clickable-title:active {
+          transform: scale(0.98);
         }
         
         .status-info {
