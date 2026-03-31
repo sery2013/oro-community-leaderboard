@@ -7,7 +7,7 @@ def log(msg):
     sys.stdout.flush()
 
 # === КОНФИГУРАЦИЯ ===
-MY_DISCORD_ID = "829735798173728789" # Вставь свой ID для контроля в логах
+MY_DISCORD_ID = "829735798173728789" # Твой ID для контроля в логах
 GUILD_ID = "1349045850331938826"
 
 # Список "родительских" каналов (включая General и Региональные)
@@ -64,7 +64,7 @@ def get_discord_data():
             if r.status_code == 429:
                 time.sleep(int(r.json().get('retry_after', 2))); continue
             if r.status_code == 403:
-                log(f"🚫 Нет доступа к {tid} (нужно выбрать роль в Discord!)"); break
+                log(f"🚫 Нет доступа к {tid}"); break
             if r.status_code != 200: break
             
             msgs = r.json()
@@ -87,7 +87,7 @@ def get_discord_data():
                     }
                 user_stats[uid]["discord_messages"] += 1
                 
-                # Поиск ссылок на твиты во всех сообщениях
+                # Поиск ссылок на твиты
                 content = m.get('content', '')
                 found_ids = re.findall(r'status/(\d+)', content)
                 for t_id in found_ids:
@@ -114,46 +114,62 @@ async def fetch_tweet_data(session, tweet_info, api_key):
     return uid, 0, 0, 0, None
 
 async def main():
-    sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
-    tw_key = os.getenv('SOCIALDATA_KEY')
-    
-    users, tweets = get_discord_data()
-    
-    # 🐦 ШАГ 3: Получение данных из Twitter (SocialData)
-    if tweets and tw_key:
-        log(f"🐦 Найдено {len(tweets)} твитов. Начинаю проверку...")
-        async with aiohttp.ClientSession() as sess:
-            for i in range(0, len(tweets), 10):
-                batch = tweets[i:i+10]
-                results = await asyncio.gather(*[fetch_tweet_data(sess, t, tw_key) for t in batch])
-                for uid, likes, views, replies, handle in results:
-                    if uid in users:
-                        users[uid]["twitter_posts"] += 1
-                        users[uid]["twitter_likes"] += likes
-                        users[uid]["twitter_views"] += views
-                        users[uid]["twitter_replies"] += replies
-                        if handle: users[uid]["twitter_handle"] = handle
-                await asyncio.sleep(1.2) # Чтобы SocialData не забанил за скорость
-
-    # 📊 ШАГ 4: Расчет баллов и отправка в базу
-    payload = []
-    for uid, info in users.items():
-        # Формула: Сообщения*10 + Лайки*5 + Ответы*5 + (Просмотры/10)
-        info["total_score"] = (info["discord_messages"] * 10) + \
-                             (info["twitter_likes"] * 5) + \
-                             (info["twitter_replies"] * 5) + \
-                             (info["twitter_views"] // 10)
-        payload.append(info)
-
-    if payload:
-        payload.sort(key=lambda x: x['total_score'], reverse=True)
-        log(f"📊 ТОП-5 ПО БАЛЛАМ:")
-        for u in payload[:5]: log(f"👤 {u['username']} | Score: {u['total_score']} | MSG: {u['discord_messages']}")
+    try:
+        sb = create_client(os.getenv("SUPABASE_URL"), os.getenv("SUPABASE_KEY"))
+        tw_key = os.getenv('SOCIALDATA_KEY')
         
-        sb.table("leaderboard_stats").upsert(payload, on_conflict="user_id").execute()
-        log("✅ БАЗА ОБНОВЛЕНА")
-    else:
-        log("⚠️ Данных не найдено. Проверь доступ к каналам!")
+        users, tweets = get_discord_data()
+        
+        # 🐦 ШАГ 3: Получение данных из Twitter (SocialData)
+        if tweets and tw_key:
+            log(f"🐦 Найдено {len(tweets)} твитов. Начинаю проверку...")
+            async with aiohttp.ClientSession() as sess:
+                for i in range(0, len(tweets), 10):
+                    batch = tweets[i:i+10]
+                    results = await asyncio.gather(*[fetch_tweet_data(sess, t, tw_key) for t in batch])
+                    for uid, likes, views, replies, handle in results:
+                        if uid in users:
+                            users[uid]["twitter_posts"] += 1
+                            users[uid]["twitter_likes"] += likes
+                            users[uid]["twitter_views"] += views
+                            users[uid]["twitter_replies"] += replies
+                            if handle: users[uid]["twitter_handle"] = handle
+                    await asyncio.sleep(1.2)
+
+        # 📊 ШАГ 4: Расчет баллов
+        payload = []
+        for uid, info in users.items():
+            info["total_score"] = (info["discord_messages"] * 10) + \
+                                 (info["twitter_likes"] * 5) + \
+                                 (info["twitter_replies"] * 5) + \
+                                 (info["twitter_views"] // 10)
+            payload.append(info)
+
+        if payload:
+            payload.sort(key=lambda x: x['total_score'], reverse=True)
+            log(f"📊 ТОП-5 ПО БАЛЛАМ:")
+            for u in payload[:5]: log(f"👤 {u['username']} | Score: {u['total_score']}")
+            
+            # 🔥 ОЧИСТКА ТАБЛИЦЫ ПЕРЕД ЗАПИСЬЮ 🔥
+            log("🧹 Очищаю таблицу leaderboard_stats...")
+            try:
+                # Удаляем все записи, где user_id не пустой (т.е. вообще все)
+                sb.table("leaderboard_stats").delete().neq("user_id", "0").execute()
+            except Exception as e:
+                log(f"⚠️ Ошибка при очистке: {e}")
+
+            # 📤 ЗАГРУЗКА ДАННЫХ ПАЧКАМИ 📤
+            log(f"📤 Загружаю {len(payload)} участников...")
+            for i in range(0, len(payload), 100):
+                batch = payload[i:i+100]
+                sb.table("leaderboard_stats").insert(batch).execute()
+            
+            log("✅ БАЗА ПОЛНОСТЬЮ ОБНОВЛЕНА")
+        else:
+            log("⚠️ Данных не найдено.")
+            
+    except Exception as e:
+        log(f"❌ Критическая ошибка: {e}")
 
 if __name__ == "__main__":
     asyncio.run(main())
