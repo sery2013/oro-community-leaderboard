@@ -192,7 +192,7 @@ export default function Leaderboard() {
               <h1 className="main-title">ORO AI SOCIAL RANKING</h1>
               <div className="status-info">
                 <span className="update-badge">{lastUpdate}</span>
-                <span className="status-label">LEADERBOARD UPDATED ONCE DAILY</span>
+                <span className="status-label">LEADERBOARD DATA UPDATED MANUALLY</span>
               </div>
             </div>
           </div>
