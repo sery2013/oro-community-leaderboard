@@ -253,7 +253,7 @@ export default function Leaderboard() {
             <div className="stat-content">
               <span className="stat-label">48h Twitter Posts</span>
               <span className="stat-value highlight">{serverStats.twitterPosts24h}</span>
-              <span className="stat-sub">Total posts today</span>
+              <span className="stat-sub">Total posts </span>
             </div>
           </div>
         </div>
