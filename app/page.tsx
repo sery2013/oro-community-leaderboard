@@ -14,6 +14,7 @@ export default function Leaderboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [lastUpdate, setLastUpdate] = useState<string>('Syncing...');
   const [serverStats, setServerStats] = useState({
     totalContributors: 0,
     totalMessages: 0,
@@ -38,6 +39,20 @@ export default function Leaderboard() {
       
       const validData = (data || []).filter(u => u.discord_joined_at || (u.discord_roles && u.discord_roles.length > 0));
       setUsers(validData);
+
+      // Извлекаем дату обновления из первой строки данных
+      if (data && data.length > 0 && data[0].updated_at) {
+        const date = new Date(data[0].updated_at);
+        const formatted = date.toLocaleString('en-GB', { 
+          day: '2-digit', 
+          month: 'short', 
+          hour: '2-digit', 
+          minute: '2-digit' 
+        });
+        setLastUpdate(formatted);
+      } else {
+        setLastUpdate('Daily Sync');
+      }
 
       // 🔥 Расчёт статистики сервера
       if (validData.length > 0) {
@@ -176,8 +191,7 @@ export default function Leaderboard() {
               <div className="status-dot"></div>
               <h1 className="main-title">ORO AI SOCIAL RANKING</h1>
               <div className="status-info">
-                {/* ИЗМЕНЕННАЯ ДАТА НИЖЕ */}
-                <span className="update-badge">01 Apr 1:40 PM</span>
+                <span className="update-badge">{lastUpdate}</span>
                 <span className="status-label">LEADERBOARD UPDATED ONCE DAILY</span>
               </div>
             </div>
