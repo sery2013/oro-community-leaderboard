@@ -176,7 +176,8 @@ export default function Leaderboard() {
               <div className="status-dot"></div>
               <h1 className="main-title">ORO AI SOCIAL RANKING</h1>
               <div className="status-info">
-                <span className="update-badge">31 Mar 1:40 PM</span>
+                {/* ИЗМЕНЕННАЯ ДАТА НИЖЕ */}
+                <span className="update-badge">01 Apr 1:40 PM</span>
                 <span className="status-label">LEADERBOARD UPDATED ONCE DAILY</span>
               </div>
             </div>
