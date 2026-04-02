@@ -7,6 +7,17 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
 const ITEMS_PER_PAGE = 25;
 
+// === ДОБАВЛЕННЫЙ БЛОК РОЛЕЙ ===
+const PRIORITY_ROLES: Record<string, string> = {
+  "1468552780238033009": "Bronze",
+  "1468552336204103774": "Iron",
+  "1468552865759891596": "Silver",
+  "1468692622242484385": "Creator T1",
+  "1468692668325302272": "Creator T2",
+  "1468692694296563884": "Creator T3",
+  "1468692722436149536": "Creator T4"
+};
+
 export default function Leaderboard() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,25 +92,36 @@ export default function Leaderboard() {
     setCurrentPage(1);
   }, [searchQuery]);
 
+  // === ОБНОВЛЁННАЯ ФУНКЦИЯ СКАЧИВАНИЯ ===
   const downloadCard = async () => {
-    const h2c = (window as any).html2canvas;
-    if (modalRef.current && h2c) {
-      modalRef.current.classList.add('export-mode');
-      const canvas = await h2c(modalRef.current, {
-        backgroundColor: '#1a0f0a',
-        scale: 2,
+    if (!modalRef.current) return;
+    const cardElement = modalRef.current.querySelector('.modal-content') as HTMLElement;
+    if (!cardElement) return;
+
+    try {
+      // Включаем режим экспорта (отключает блюр в CSS)
+      cardElement.classList.add('export-mode');
+      
+      // Даем 150мс на перерисовку без блюра
+      await new Promise(resolve => setTimeout(resolve, 150));
+
+      const canvas = await (window as any).html2canvas(cardElement, {
         useCORS: true,
+        scale: 2, // Оптимально для четкости и памяти
+        backgroundColor: '#0a0a0a',
         logging: false,
-        ignoreElements: (el: HTMLElement) =>
-          el.classList.contains('download-btn') ||
-          el.classList.contains('close-btn') ||
-          el.classList.contains('export-mode')
+        allowTaint: true
       });
-      modalRef.current.classList.remove('export-mode');
+
       const link = document.createElement('a');
-      link.download = `${selectedUser?.username || 'contributor'}-stats.png`;
-      link.href = canvas.toDataURL('image/png');
+      link.download = `oro-identity-${selectedUser?.username || 'user'}.png`;
+      link.href = canvas.toDataURL("image/png", 1.0);
       link.click();
+    } catch (err) {
+      console.error("Download Error:", err);
+    } finally {
+      // Возвращаем блюр
+      cardElement.classList.remove('export-mode');
     }
   };
 
@@ -433,6 +455,22 @@ export default function Leaderboard() {
               <div className="modal-titles">
                 <div className="modal-rank-badge">RANK #{users.findIndex(u => u.user_id === selectedUser.user_id) + 1}</div>
                 <h2>{selectedUser.username}</h2>
+                
+                {/* ОБНОВЛЕННЫЙ БЛОК РОЛЕЙ */}
+                <div className="roles-container">
+                  {selectedUser.discord_roles
+                    ?.filter((id: string) => PRIORITY_ROLES[id])
+                    .map((id: string) => (
+                      <span key={id} className="role-badge">
+                        {PRIORITY_ROLES[id]}
+                      </span>
+                    ))
+                  }
+                  <span className="user-id-label">
+                    ID: {selectedUser.user_id}
+                  </span>
+                </div>
+                
                 <p>Member since {formatDate(selectedUser.discord_joined_at)}</p>
               </div>
             </div>
@@ -611,7 +649,6 @@ export default function Leaderboard() {
           letter-spacing: 4px;
           margin: 0;
           flex-grow: 1;
-          /* ✅ ЯРКИЙ ЗОЛОТОЙ ГРАДИЕНТ */
           background: linear-gradient(135deg, #FFD700 0%, #FFA500 50%, #FFD700 100%);
           background-size: 200% auto;
           -webkit-background-clip: text;
@@ -790,7 +827,6 @@ export default function Leaderboard() {
           font-weight: 300; 
         }
         
-        /* ✅ ЯРКИЙ НОМЕР РАНГА */
         .rank-number { 
           font-size: 2.5rem; 
           font-weight: 700; 
@@ -860,7 +896,6 @@ export default function Leaderboard() {
           gap: 8px;
         }
         
-        /* ✅ ЯРКОЕ ИМЯ ПОЛЬЗОВАТЕЛЯ */
         .display-name {
           margin: 0;
           font-size: 1.5rem;
@@ -961,7 +996,6 @@ export default function Leaderboard() {
           margin-top: -1px; 
         }
         
-        /* ✅ ЯРКИЕ ЦИФРЫ МЕТРИК */
         .stat-val { 
           font-size: 1.1rem; 
           font-weight: 700; 
@@ -1017,7 +1051,6 @@ export default function Leaderboard() {
           color: #3b82f6;
         }
         
-        /* ✅ ЯРКИЕ ЗАГОЛОВКИ МЕТРИК */
         .metric-label {
           display: block;
           font-size: 0.6rem;
@@ -1036,7 +1069,6 @@ export default function Leaderboard() {
           box-shadow: 0 4px 20px rgba(255,165,0,0.15);
         }
         
-        /* ✅ ЯРКИЙ XP */
         .total-score-value {
           font-size: 2.2rem;
           font-weight: 700;
@@ -1086,7 +1118,6 @@ export default function Leaderboard() {
           gap: 2px;
         }
         
-        /* ✅ ЯРКИЕ ЗАГОЛОВКИ СТАТИСТИКИ */
         .stat-label {
           font-size: 0.65rem;
           color: rgba(255,255,255,0.7);
@@ -1094,7 +1125,6 @@ export default function Leaderboard() {
           text-transform: uppercase;
         }
         
-        /* ✅ ЯРКИЕ ЦИФРЫ СТАТИСТИКИ */
         .stat-value {
           font-size: 1.5rem;
           font-weight: 700;
@@ -1251,8 +1281,14 @@ export default function Leaderboard() {
           z-index: 1;
         }
         
+        .modal-titles {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+        
         .modal-titles h2 {
-          margin: 10px 0 5px;
+          margin: 0;
           font-size: 2.2rem;
           color: #fff;
           text-shadow: 0 2px 15px rgba(0,0,0,0.3);
@@ -1274,7 +1310,39 @@ export default function Leaderboard() {
           border-radius: 20px;
           letter-spacing: 1px;
           box-shadow: 0 4px 15px rgba(255,165,0,0.3);
+          width: fit-content;
         }
+        
+        /* === НОВЫЕ СТИЛИ ДЛЯ БЛОКА РОЛЕЙ === */
+        .roles-container {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          align-items: center;
+          margin-top: 4px;
+        }
+        
+        .role-badge {
+          display: inline-block;
+          padding: 2px 8px;
+          background: rgba(255,165,0,0.1);
+          border: 1px solid rgba(255,165,0,0.3);
+          border-radius: 4px;
+          font-size: 9px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.5px;
+          color: #FFA500;
+          line-height: 1;
+        }
+        
+        .user-id-label {
+          font-size: 10px;
+          color: rgba(255,255,255,0.4);
+          margin-left: 4px;
+          font-family: monospace;
+        }
+        /* === КОНЕЦ НОВЫХ СТИЛЕЙ === */
         
         .stat-grid-modal {
           display: grid;
