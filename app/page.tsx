@@ -120,15 +120,20 @@ export default function Leaderboard() {
       overflow: hidden;
       width: ${EXPORT_TWITTER_W}px;
       height: ${EXPORT_TWITTER_H}px;
+      max-width: ${EXPORT_TWITTER_W}px;
+      max-height: ${EXPORT_TWITTER_H}px;
+      min-width: ${EXPORT_TWITTER_W}px;
+      min-height: ${EXPORT_TWITTER_H}px;
       padding: 22px 28px;
       font-family: 'Space Grotesk', sans-serif;
       color: #fff;
       box-sizing: border-box;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
+      display: grid;
+      grid-template-rows: auto minmax(0, 1fr) auto;
+      row-gap: 14px;
+      align-content: stretch;
     ">
-      <div style="display: flex; align-items: center; gap: 22px; flex-shrink: 0;">
+      <div style="display: flex; align-items: center; gap: 22px; min-height: 0;">
         <div style="
           width: 102px;
           height: 102px;
@@ -185,11 +190,12 @@ export default function Leaderboard() {
       </div>
 
       <div style="
-        flex: 1;
         min-height: 0;
+        min-width: 0;
         display: grid;
         grid-template-columns: 1fr 1fr;
         gap: 14px;
+        align-content: stretch;
       ">
         <div style="
           background: rgba(0,0,0,0.28);
@@ -257,7 +263,7 @@ export default function Leaderboard() {
       </div>
 
       <div style="
-        flex-shrink: 0;
+        min-height: 0;
         background: linear-gradient(135deg, rgba(255,165,0,0.22), rgba(255,100,0,0.08));
         border: 2px solid rgba(255,165,0,0.45);
         border-radius: ${rInner}px;
@@ -332,6 +338,8 @@ export default function Leaderboard() {
         pixelRatio: 2,
         backgroundColor: '#1a0f0a',
         cacheBust: true,
+        width: EXPORT_TWITTER_W,
+        height: EXPORT_TWITTER_H,
       });
 
       if (tempDiv.parentNode) {
