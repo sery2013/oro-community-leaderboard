@@ -93,43 +93,60 @@ export default function Leaderboard() {
     setCurrentPage(1);
   }, [searchQuery]);
 
+  // === ИСПРАВЛЕННАЯ ФУНКЦИЯ СКАЧИВАНИЯ ===
   const downloadCard = async () => {
-    // Проверка на наличие window важна для билда Next.js
     if (typeof window === 'undefined' || !modalRef.current || !selectedUser) return;
     
-    const cardElement = modalRef.current.querySelector('.modal-content') as HTMLElement;
-    if (!cardElement) return;
+    // ✅ FIX: modalRef.current уже является .modal-content
+    const cardElement = modalRef.current;
 
     try {
-      cardElement.classList.add('export-mode');
-      // Небольшая задержка для применения CSS
-      await new Promise((resolve) => setTimeout(resolve, 300));
-
-      const h2c = (window as any).html2canvas;
-      
-      if (h2c) {
-        const canvas = await h2c(cardElement, {
-          useCORS: true,
-          allowTaint: false,
-          scale: 2,
-          backgroundColor: '#1a0f0a',
-          imageTimeout: 15000,
-          logging: false
-        });
-
-        const dataUrl = canvas.toDataURL("image/png");
-        const link = document.createElement('a');
-        link.download = `card-${selectedUser.username}.png`;
-        link.href = dataUrl;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else {
-        console.error("html2canvas not found on window");
+      // Ждём загрузки html2canvas (если скрипт ещё не готов)
+      let h2c = (window as any).html2canvas;
+      let retries = 0;
+      while (!h2c && retries < 20) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        h2c = (window as any).html2canvas;
+        retries++;
       }
+      
+      if (!h2c) {
+        console.error("html2canvas not loaded after waiting");
+        return;
+      }
+
+      // Включаем режим экспорта
+      cardElement.classList.add('export-mode');
+      
+      // Даём время на применение стилей + загрузку изображений
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      const canvas = await h2c(cardElement, {
+        useCORS: true,
+        allowTaint: true, // ✅ Разрешаем внешние изображения (аватарки)
+        scale: 2,
+        backgroundColor: '#1a0f0a',
+        imageTimeout: 20000,
+        logging: false,
+        // Игнорируем кнопки, которые не нужны на скриншоте
+        ignoreElements: (el: Element) => 
+          el.classList.contains('download-btn') || 
+          el.classList.contains('close-btn') ||
+          el.classList.contains('export-mode')
+      });
+
+      const dataUrl = canvas.toDataURL("image/png");
+      const link = document.createElement('a');
+      link.download = `card-${selectedUser.username || 'user'}.png`;
+      link.href = dataUrl;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
     } catch (err) {
       console.error("Export error:", err);
     } finally {
+      // Возвращаем стили
       cardElement.classList.remove('export-mode');
     }
   };
@@ -1443,22 +1460,30 @@ export default function Leaderboard() {
           box-shadow: 0 0 30px rgba(255,165,0,0.2);
         }
         
+        /* === УЛУЧШЕННЫЙ EXPORT MODE === */
         .modal-content.export-mode {
           filter: none !important;
           backdrop-filter: none !important;
           box-shadow: none !important;
+          transform: none !important;
           background: #1a0f0a !important; 
           border: 2px solid #FFA500 !important;
+          position: relative !important;
+          z-index: auto !important;
         }
 
-        .modal-content.export-mode .modal-avatar-glow {
+        .modal-content.export-mode .modal-avatar-glow,
+        .modal-content.export-mode .glow,
+        .modal-content.export-mode .grid-overlay {
           display: none !important;
         }
 
         .modal-content.export-mode * {
           animation: none !important;
           transition: none !important;
+          transform: none !important;
         }
+        /* === КОНЕЦ EXPORT MODE === */
         
         @keyframes modalFadeIn { from { opacity: 0; } }
         
