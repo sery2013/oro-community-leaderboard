@@ -33,6 +33,7 @@ function ensureFredokaForExport(): Promise<void> {
     setTimeout(resolve, 900);
   }).then(async () => {
     try {
+      await document.fonts.load('700 28px Fredoka');
       await document.fonts.load('700 24px Fredoka');
       await document.fonts.load('600 20px Fredoka');
     } catch {
@@ -75,6 +76,14 @@ export default function Leaderboard() {
     script.src = "https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js";
     script.async = true;
     document.body.appendChild(script);
+
+    if (typeof document !== 'undefined' && !document.getElementById('oro-export-fredoka-font')) {
+      const fontLink = document.createElement('link');
+      fontLink.id = 'oro-export-fredoka-font';
+      fontLink.rel = 'stylesheet';
+      fontLink.href = FREDOKA_FONT_STYLESHEET;
+      document.head.appendChild(fontLink);
+    }
 
     async function fetchData() {
       if (!supabase) return;
@@ -222,47 +231,39 @@ export default function Leaderboard() {
         </div>
         <div style="
           flex: 1;
-          min-width: 200px;
-          min-height: 124px;
-          border: 2px solid rgba(255,180,60,0.75);
+          min-width: 220px;
+          min-height: 132px;
+          border: 2px solid rgba(255,180,60,0.85);
           border-radius: 22px;
-          background: linear-gradient(165deg, rgba(255,165,0,0.14) 0%, rgba(0,0,0,0.35) 55%, rgba(255,140,0,0.08) 100%);
-          box-shadow: inset 0 0 0 1px rgba(255,215,0,0.12), 0 6px 20px rgba(0,0,0,0.35);
-          padding: 12px 14px;
+          background: linear-gradient(165deg, rgba(255,165,0,0.16) 0%, rgba(0,0,0,0.4) 50%, rgba(255,140,0,0.1) 100%);
+          box-shadow: inset 0 0 0 1px rgba(255,215,0,0.15), 0 6px 20px rgba(0,0,0,0.35);
+          padding: 0;
           display: flex;
           align-items: center;
           justify-content: center;
           box-sizing: border-box;
         ">
-          <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 8px;">
-            <div style="
-              display: flex;
-              flex-direction: row;
-              justify-content: space-between;
-              align-items: center;
-              gap: 6px;
-              width: 100%;
+          <div style="
+            width: 100%;
+            height: 100%;
+            min-height: 132px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 14px 16px;
+            box-sizing: border-box;
+          ">
+            <span style="
+              font-family: inherit;
+              font-weight: 700;
+              font-size: 27px;
               color: #FFD700;
-              font-weight: 700;
-              font-size: 21px;
-              letter-spacing: 0.04em;
+              letter-spacing: 0.06em;
               text-transform: uppercase;
-              line-height: 1.05;
-            ">
-              <span style="flex: 1; text-align: center;">ORO</span>
-              <span style="flex: 1; text-align: center;">DISCORD</span>
-              <span style="flex: 1; text-align: center;">CARD</span>
-            </div>
-            <div style="
               text-align: center;
-              color: #FFB020;
-              font-weight: 700;
-              font-size: 26px;
-              letter-spacing: 0.55em;
-              text-indent: 0.55em;
-              text-transform: uppercase;
-              line-height: 1;
-            ">ACTIVITY</div>
+              line-height: 1.15;
+              white-space: nowrap;
+            ">ORO · DISCORD · CARD · ACTIVITY</span>
           </div>
         </div>
       </div>
