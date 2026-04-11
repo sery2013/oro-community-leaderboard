@@ -54,6 +54,8 @@ async def get_discord_messages(session, thread_id, days=2):
     messages = []
     last_id = None
     
+    log(f"Начинаю сбор сообщений из {thread_id} (глубина {days} дн.)")
+    
     while True:
         url = f"https://discord.com/api/v9/channels/{thread_id}/messages?limit=100"
         if last_id: url += f"&before={last_id}"
@@ -61,21 +63,32 @@ async def get_discord_messages(session, thread_id, days=2):
         async with session.get(url, headers=HEADERS) as resp:
             if resp.status == 429:
                 retry_after = (await resp.json()).get('retry_after', 1)
-                log(f"Rate limit! Пауза {retry_after} сек.")
+                log(f"Rate limit! Ждем {retry_after} сек.")
                 await asyncio.sleep(retry_after)
                 continue
             if resp.status != 200:
                 log(f"Ошибка {resp.status} в ветке {thread_id}")
                 break
+            
             batch = await resp.json()
-            if not batch: break
+            if not batch: 
+                log("Сообщений больше нет (конец ветки).")
+                break
+            
+            current_batch_count = len(batch)
+            last_m_date_str = batch[-1]['timestamp']
             
             for m in batch:
                 m_date = datetime.fromisoformat(m['timestamp'].replace('Z', '+00:00'))
-                if m_date < target_date: return messages
+                if m_date < target_date:
+                    log(f"Достигли даты {m_date.strftime('%Y-%m-%d')}. Сбор завершен. Итого: {len(messages)} шт.")
+                    return messages
                 messages.append(m)
+            
             last_id = batch[-1]['id']
+            log(f"Скачано пачкой: {current_batch_count}. Всего: {len(messages)}. Последняя дата: {last_m_date_str[:10]}")
             await asyncio.sleep(random.uniform(0.4, 0.8))
+            
     return messages
 
 async def main():
@@ -90,7 +103,7 @@ async def main():
         for tid in THREAD_IDS:
             is_content = (tid == CONTENT_THREAD_ID)
             days = 30 if is_content else 2
-            log(f"Сбор сообщений: ветка {tid} за {days} дн.")
+            log(f"Обработка ветки: {tid}")
             
             msgs = await get_discord_messages(session, tid, days)
             for m in msgs:
@@ -120,7 +133,6 @@ async def main():
                     match = re.search(r'(\d[\d\s,.]*)\s*XP', xm['content'])
                     if match:
                         val = int(match.group(1).replace(' ', '').replace(',', '').replace('.', ''))
-                        # Берем максимальное значение XP из найденных за 2 дня
                         if val > users[t_uid]["total_score"]:
                             users[t_uid]["total_score"] = val
 
