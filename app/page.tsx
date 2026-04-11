@@ -93,35 +93,43 @@ export default function Leaderboard() {
     setCurrentPage(1);
   }, [searchQuery]);
 
-  // === ОБНОВЛЁННАЯ ФУНКЦИЯ СКАЧИВАНИЯ ===
   const downloadCard = async () => {
-    if (!modalRef.current) return;
+    if (!modalRef.current || !selectedUser) return;
     const cardElement = modalRef.current.querySelector('.modal-content') as HTMLElement;
     if (!cardElement) return;
 
     try {
-      // Включаем режим экспорта (отключает блюр в CSS)
       cardElement.classList.add('export-mode');
-      
-      // Даем 150мс на перерисовку без блюра
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await new Promise(resolve => setTimeout(resolve, 300));
 
       const canvas = await (window as any).html2canvas(cardElement, {
         useCORS: true,
-        scale: 2, // Оптимально для четкости и памяти
-        backgroundColor: '#0a0a0a',
-        logging: false,
-        allowTaint: true
+        allowTaint: false,
+        scale: 2,
+        backgroundColor: '#1a0f0a',
+        imageTimeout: 15000,
+        onclone: (clonedDoc: any) => {
+          const clonedContent = clonedDoc.querySelector('.modal-content');
+          if (clonedContent) {
+            clonedContent.style.filter = 'none';
+            clonedContent.style.backdropFilter = 'none';
+            const btn = clonedContent.querySelector('.download-btn');
+            const close = clonedContent.querySelector('.close-btn');
+            if (btn) btn.style.display = 'none';
+            if (close) close.style.display = 'none';
+          }
+        }
       });
 
       const link = document.createElement('a');
-      link.download = `oro-identity-${selectedUser?.username || 'user'}.png`;
+      link.download = `oro-identity-${selectedUser.username}.png`;
       link.href = canvas.toDataURL("image/png", 1.0);
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
     } catch (err) {
       console.error("Download Error:", err);
     } finally {
-      // Возвращаем блюр
       cardElement.classList.remove('export-mode');
     }
   };
