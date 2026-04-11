@@ -14,7 +14,7 @@ SOCIALDATA_API_KEY = os.getenv("SOCIALDATA_API_KEY")
 
 GUILD_ID = "1349045850331938826"
 CONTENT_THREAD_ID = "1389273374748049439"  # Ветка с твитами (30 дней)
-XP_BOT_THREAD_ID = "1351492950768619552"   # Ветка, где бот пишет XP
+XP_BOT_THREAD_ID = "1351492950768619552"    # Ветка, где бот пишет XP
 THREAD_IDS = [
     "1351487907042431027", "1351488160206426227", "1351488253332557867", 
     "1351492950768619552", "1367864741548261416", "1371904712001065000", 
@@ -102,7 +102,16 @@ async def main():
     async with aiohttp.ClientSession() as session:
         for tid in THREAD_IDS:
             is_content = (tid == CONTENT_THREAD_ID)
-            days = 30 if is_content else 2
+            is_xp_bot = (tid == XP_BOT_THREAD_ID)
+            
+            # НОВАЯ ЛОГИКА ГЛУБИНЫ ПО ВАШЕМУ ЗАПРОСУ:
+            if is_content:
+                days = 30
+            elif is_xp_bot:
+                days = 14
+            else:
+                days = 7
+                
             log(f"Обработка ветки: {tid}")
             
             msgs = await get_discord_messages(session, tid, days)
@@ -123,9 +132,9 @@ async def main():
                 else:
                     users[uid]["discord_messages"] += 1
 
-        # Парсинг XP из логов бота
+        # Парсинг XP из логов бота (также увеличиваем до 14 дней здесь)
         log("Обновление XP из логов бота...")
-        xp_msgs = await get_discord_messages(session, XP_BOT_THREAD_ID, 2)
+        xp_msgs = await get_discord_messages(session, XP_BOT_THREAD_ID, 14)
         for xm in xp_msgs:
             if xm.get('mentions'):
                 t_uid = xm['mentions'][0]['id']
