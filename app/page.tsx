@@ -37,7 +37,7 @@ export default function Leaderboard() {
 
   useEffect(() => {
     const script = document.createElement('script');
-    script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+    script.src = "https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.min.js";
     script.async = true;
     document.body.appendChild(script);
 
@@ -92,12 +92,13 @@ export default function Leaderboard() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery]);
-const createScreenshotCard = () => {
-  if (!selectedUser) return null;
-  
-  const rank = users.findIndex(u => u.user_id === selectedUser.user_id) + 1;
-  
-  return `
+
+  const createScreenshotCard = () => {
+    if (!selectedUser) return null;
+
+    const rank = users.findIndex(u => u.user_id === selectedUser.user_id) + 1;
+
+    return `
     <div style="
       background: #1a0f0a;
       border: 3px solid #FFA500;
@@ -108,13 +109,10 @@ const createScreenshotCard = () => {
       color: #fff;
       box-sizing: border-box;
     ">
-      <!-- Header -->
       <div style="display: flex; align-items: flex-start; gap: 20px; margin-bottom: 30px;">
-        
-        <!-- Avatar -->
         <div style="
           min-width: 80px;
-          width: 80px; 
+          width: 80px;
           height: 80px;
           border-radius: 20px;
           border: 3px solid #FFA500;
@@ -123,11 +121,7 @@ const createScreenshotCard = () => {
         ">
           <img src="${selectedUser.avatar_url}" style="width: 100%; height: 100%; object-fit: cover;" crossOrigin="anonymous" />
         </div>
-
-        <!-- Text Content -->
         <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
-          
-          <!-- Rank -->
           <div style="
             display: inline-block;
             background: #FFA500;
@@ -139,17 +133,13 @@ const createScreenshotCard = () => {
             width: fit-content;
             margin-bottom: 4px;
           ">RANK #${rank}</div>
-
-          <!-- Username -->
           <div style="
-            font-size: 32px; 
-            font-weight: 700; 
+            font-size: 32px;
+            font-weight: 700;
             line-height: 1.2;
             margin: 0;
             padding: 0;
           ">${selectedUser.username}</div>
-
-          <!-- Roles + ID -->
           <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px;">
             ${selectedUser.discord_roles?.filter((id: string) => PRIORITY_ROLES[id]).map((id: string) => `
               <span style="
@@ -162,29 +152,23 @@ const createScreenshotCard = () => {
                 text-transform: uppercase;
               ">${PRIORITY_ROLES[id]}</span>
             `).join('') || ''}
-            
             <span style="
-              font-size: 11px; 
-              color: rgba(255,255,255,0.5); 
+              font-size: 11px;
+              color: rgba(255,255,255,0.5);
               font-family: monospace;
             ">
               ID: ${selectedUser.user_id}
             </span>
           </div>
-
-          <!-- Date -->
           <div style="
-            color: rgba(255,255,255,0.6); 
+            color: rgba(255,255,255,0.6);
             font-size: 14px;
             margin-top: 4px;
           ">
             Member since ${formatDate(selectedUser.discord_joined_at)}
           </div>
-
         </div>
       </div>
-
-      <!-- Stats Grid -->
       <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
         <div>
           <h3 style="color: #FFD700; font-size: 11px; letter-spacing: 2px; margin: 0 0 15px; text-transform: uppercase; border-bottom: 1px solid rgba(255,165,0,0.4); padding-bottom: 10px;">
@@ -203,7 +187,6 @@ const createScreenshotCard = () => {
             <span style="font-weight: 700;">${selectedUser.discord_roles?.length || 0}</span>
           </div>
         </div>
-        
         <div>
           <h3 style="color: #FFD700; font-size: 11px; letter-spacing: 2px; margin: 0 0 15px; text-transform: uppercase; border-bottom: 1px solid rgba(255,165,0,0.4); padding-bottom: 10px;">
             X (Twitter) Impact
@@ -222,8 +205,6 @@ const createScreenshotCard = () => {
           </div>
         </div>
       </div>
-
-      <!-- XP Block -->
       <div style="
         background: linear-gradient(135deg, rgba(255,165,0,0.2), rgba(255,140,0,0.1));
         border: 2px solid rgba(255,165,0,0.4);
@@ -263,66 +244,57 @@ const createScreenshotCard = () => {
       </div>
     </div>
   `;
-};
-  // === ИСПРАВЛЕННАЯ ФУНКЦИЯ СКАЧИВАНИЯ ===
+  };
+
   const downloadCard = async () => {
-  if (typeof window === 'undefined' || !selectedUser) return;
+    if (typeof window === 'undefined' || !selectedUser) return;
 
-  try {
-    // Ждём html2canvas
-    let h2c = (window as any).html2canvas;
-    let retries = 0;
-    while (!h2c && retries < 30) {
-      await new Promise(resolve => setTimeout(resolve, 100));
-      h2c = (window as any).html2canvas;
-      retries++;
-    }
-    
-    if (!h2c) {
-      alert("html2canvas не загрузился");
-      return;
-    }
+    let tempDiv: HTMLDivElement | null = null;
+    try {
+      let hti = (window as unknown as { htmlToImage?: { toBlob: (n: HTMLElement, o?: object) => Promise<Blob | null> } }).htmlToImage;
+      let retries = 0;
+      while (!hti && retries < 30) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        hti = (window as unknown as { htmlToImage?: { toBlob: (n: HTMLElement, o?: object) => Promise<Blob | null> } }).htmlToImage;
+        retries++;
+      }
 
-    // Создаём упрощённую карточку
-    const cardHTML = createScreenshotCard();
-    if (!cardHTML) return;
-
-    // Создаём временный элемент
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = cardHTML;
-    tempDiv.style.position = 'absolute';
-    tempDiv.style.left = '-9999px';
-    tempDiv.style.top = '0';
-    document.body.appendChild(tempDiv);
-
-    console.log('📸 Capturing simplified card...');
-
-    // Делаем скриншот
-    const canvas = await h2c(tempDiv, {
-      useCORS: true,
-      allowTaint: true,
-      scale: 2,
-      backgroundColor: '#1a0f0a',
-      logging: false,
-      foreignObjectRendering: false
-    });
-
-    // Удаляем временный элемент
-    document.body.removeChild(tempDiv);
-
-    if (canvas.width === 0 || canvas.height === 0) {
-      throw new Error("Canvas empty");
-    }
-    
-    console.log(`✅ Canvas: ${canvas.width}x${canvas.height}`);
-
-    // Скачиваем
-    canvas.toBlob((blob) => {
-      if (!blob) {
-        alert("Не удалось создать blob");
+      if (!hti?.toBlob) {
+        alert('html-to-image не загрузился');
         return;
       }
-      
+
+      const cardHTML = createScreenshotCard();
+      if (!cardHTML) return;
+
+      tempDiv = document.createElement('div');
+      tempDiv.innerHTML = cardHTML;
+      tempDiv.style.position = 'absolute';
+      tempDiv.style.left = '-9999px';
+      tempDiv.style.top = '0';
+      document.body.appendChild(tempDiv);
+
+      const target = tempDiv.firstElementChild as HTMLElement | null;
+      if (!target) {
+        throw new Error('Card root missing');
+      }
+
+      const blob = await hti.toBlob(target, {
+        pixelRatio: 2,
+        backgroundColor: '#1a0f0a',
+        cacheBust: true,
+      });
+
+      if (tempDiv.parentNode) {
+        document.body.removeChild(tempDiv);
+      }
+      tempDiv = null;
+
+      if (!blob) {
+        alert('Не удалось создать изображение');
+        return;
+      }
+
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.download = `card-${selectedUser.username || 'user'}.png`;
@@ -330,16 +302,17 @@ const createScreenshotCard = () => {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
       setTimeout(() => URL.revokeObjectURL(url), 100);
-      console.log('💾 Downloaded');
-    }, 'image/png');
-
-  } catch (err: any) {
-    console.error("🔥 Error:", err);
-    alert(`Ошибка: ${err.message || err}`);
-  }
-};
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('Download error:', err);
+      alert(`Ошибка: ${message}`);
+    } finally {
+      if (tempDiv?.parentNode) {
+        document.body.removeChild(tempDiv);
+      }
+    }
+  };
 
   const formatDate = (isoString: string) => {
     if (!isoString) return 'NEW MEMBER';
