@@ -99,11 +99,9 @@ export default function Leaderboard() {
     console.warn('Download prerequisites not met');
     return;
   }
-  
-  const cardElement = modalRef.current;
 
   try {
-    // 1. Ждём html2canvas (с таймаутом)
+    // 1. Ждём html2canvas
     let h2c = (window as any).html2canvas;
     let retries = 0;
     while (!h2c && retries < 30) {
@@ -113,48 +111,47 @@ export default function Leaderboard() {
     }
     
     if (!h2c) {
-      alert("⚠️ Инструмент для скриншотов ещё загружается. Подожди 2-3 секунды и попробуй снова.");
+      alert("⚠️ html2canvas не загрузился. Подожди и попробуй снова.");
       return;
     }
 
-    // 2. Включаем режим экспорта
-    cardElement.classList.add('export-mode');
-    await new Promise(resolve => setTimeout(resolve, 400));
+    // 2. Находим modal-content (саму карточку)
+    const cardElement = modalRef.current;
+    if (!cardElement) {
+      throw new Error("Modal content not found");
+    }
 
-    // 3. Делаем скриншот с УПРОЩЁННЫМИ настройками
+    // 3. Включаем режим экспорта
+    cardElement.classList.add('export-mode');
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     console.log('📸 Starting capture...');
+
+    // 4. Пробуем захватить с МИНИМАЛЬНЫМИ настройками
     const canvas = await h2c(cardElement, {
       useCORS: true,
       allowTaint: true,
       scale: 2,
       backgroundColor: '#1a0f0a',
-      imageTimeout: 20000,
+      imageTimeout: 15000,
       logging: false,
       foreignObjectRendering: false,
-      clone: false, // 🔥 ВАЖНО: отключаем клонирование DOM
-      ignoreElements: (el: Element) => 
-        el.classList.contains('download-btn') || 
-        el.classList.contains('close-btn') ||
-        el.classList.contains('export-mode'),
-      // Игнорируем iframe если есть
-      onclone: (clonedDoc: Document) => {
-        // Удаляем все iframe из клона
-        clonedDoc.querySelectorAll('iframe').forEach((iframe) => {
-          iframe.remove();
-        });
-      }
+      // Не используем clone - это главная проблема
+      // @ts-ignore - иногда помогает явно указать
+      proxy: null,
+      onclone: null
     });
 
-    // 4. Проверка: если канвас пустой
     if (canvas.width === 0 || canvas.height === 0) {
-      throw new Error("Canvas is empty (0x0). Possible CORS issue with images.");
+      throw new Error("Canvas empty");
     }
-    console.log(`✅ Canvas created: ${canvas.width}x${canvas.height}`);
+    
+    console.log(`✅ Canvas: ${canvas.width}x${canvas.height}`);
 
-    // 5. Конвертация в Blob
+    // 5. Скачиваем
     canvas.toBlob((blob) => {
       if (!blob) {
-        alert("❌ Не удалось создать изображение. Проверь консоль.");
+        alert("❌ Не удалось создать blob");
         return;
       }
       
@@ -167,14 +164,16 @@ export default function Leaderboard() {
       document.body.removeChild(link);
       
       setTimeout(() => URL.revokeObjectURL(url), 100);
-      console.log('💾 Download triggered');
+      console.log('💾 Downloaded');
     }, 'image/png');
 
   } catch (err: any) {
-    console.error("🔥 Export error:", err);
-    alert(`❌ Ошибка скачивания:\n${err.message || err}\n\nПопробуй обновить страницу.`);
+    console.error("🔥 Error:", err);
+    alert(`❌ Ошибка:\n${err.message || err}`);
   } finally {
-    cardElement.classList.remove('export-mode');
+    if (modalRef.current) {
+      modalRef.current.classList.remove('export-mode');
+    }
   }
 };
 
