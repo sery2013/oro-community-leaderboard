@@ -95,61 +95,81 @@ export default function Leaderboard() {
 
   // === ИСПРАВЛЕННАЯ ФУНКЦИЯ СКАЧИВАНИЯ ===
   const downloadCard = async () => {
-    if (typeof window === 'undefined' || !modalRef.current || !selectedUser) return;
-    
-    // ✅ FIX: modalRef.current уже является .modal-content
-    const cardElement = modalRef.current;
+  if (typeof window === 'undefined' || !modalRef.current || !selectedUser) {
+    console.warn('Download prerequisites not met');
+    return;
+  }
+  
+  const cardElement = modalRef.current;
 
-    try {
-      // Ждём загрузки html2canvas (если скрипт ещё не готов)
-      let h2c = (window as any).html2canvas;
-      let retries = 0;
-      while (!h2c && retries < 20) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        h2c = (window as any).html2canvas;
-        retries++;
-      }
-      
-      if (!h2c) {
-        console.error("html2canvas not loaded after waiting");
+  try {
+    // 1. Ждём html2canvas (с таймаутом)
+    let h2c = (window as any).html2canvas;
+    let retries = 0;
+    while (!h2c && retries < 30) {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      h2c = (window as any).html2canvas;
+      retries++;
+    }
+    
+    if (!h2c) {
+      alert("⚠️ Инструмент для скриншотов ещё загружается. Подожди 2-3 секунды и попробуй снова.");
+      return;
+    }
+
+    // 2. Включаем режим экспорта
+    cardElement.classList.add('export-mode');
+    await new Promise(resolve => setTimeout(resolve, 400));
+
+    // 3. Делаем скриншот
+    console.log('📸 Starting capture...');
+    const canvas = await h2c(cardElement, {
+      useCORS: true,
+      allowTaint: true,
+      scale: 2,
+      backgroundColor: '#1a0f0a',
+      imageTimeout: 20000,
+      logging: false,
+      foreignObjectRendering: false, // 🔥 Важно: отключаем, чтобы не падало из-за CSS
+      ignoreElements: (el: Element) => 
+        el.classList.contains('download-btn') || 
+        el.classList.contains('close-btn') ||
+        el.classList.contains('export-mode')
+    });
+
+    // 4. Проверка: если канвас пустой
+    if (canvas.width === 0 || canvas.height === 0) {
+      throw new Error("Canvas is empty (0x0). Possible CORS issue with images.");
+    }
+    console.log(`✅ Canvas created: ${canvas.width}x${canvas.height}`);
+
+    // 5. Конвертация в Blob (надёжнее чем toDataURL)
+    canvas.toBlob((blob) => {
+      if (!blob) {
+        alert("❌ Не удалось создать изображение. Проверь консоль.");
         return;
       }
-
-      // Включаем режим экспорта
-      cardElement.classList.add('export-mode');
       
-      // Даём время на применение стилей + загрузку изображений
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      const canvas = await h2c(cardElement, {
-        useCORS: true,
-        allowTaint: true, // ✅ Разрешаем внешние изображения (аватарки)
-        scale: 2,
-        backgroundColor: '#1a0f0a',
-        imageTimeout: 20000,
-        logging: false,
-        // Игнорируем кнопки, которые не нужны на скриншоте
-        ignoreElements: (el: Element) => 
-          el.classList.contains('download-btn') || 
-          el.classList.contains('close-btn') ||
-          el.classList.contains('export-mode')
-      });
-
-      const dataUrl = canvas.toDataURL("image/png");
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.download = `card-${selectedUser.username || 'user'}.png`;
-      link.href = dataUrl;
+      link.href = url;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       
-    } catch (err) {
-      console.error("Export error:", err);
-    } finally {
-      // Возвращаем стили
-      cardElement.classList.remove('export-mode');
-    }
-  };
+      // Очистка памяти
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+      console.log('💾 Download triggered');
+    }, 'image/png');
+
+  } catch (err: any) {
+    console.error("🔥 Export error:", err);
+    alert(`❌ Ошибка скачивания:\n${err.message || err}\n\nСмотри консоль (F12) для деталей.`);
+  } finally {
+    cardElement.classList.remove('export-mode');
+  }
+};
 
   const formatDate = (isoString: string) => {
     if (!isoString) return 'NEW MEMBER';
