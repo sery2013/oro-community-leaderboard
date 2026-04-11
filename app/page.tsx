@@ -501,7 +501,12 @@ export default function Leaderboard() {
             <button className="close-btn" onClick={() => setSelectedUser(null)}>&times;</button>
             <div className="modal-header">
               <div className="modal-avatar-wrapper">
-                <img src={selectedUser.avatar_url} className="modal-avatar" alt="" />
+                <img 
+                  src={selectedUser.avatar_url} 
+                  className="modal-avatar" 
+                  alt="" 
+                  crossOrigin="anonymous"
+                />
                 <div className="modal-avatar-glow"></div>
               </div>
               <div className="modal-titles">
@@ -1496,18 +1501,40 @@ export default function Leaderboard() {
           border: 2px solid #FFA500 !important;
           position: relative !important;
           z-index: auto !important;
+          border-radius: 24px !important;
+          overflow: visible !important;
+          padding: 40px !important;
+          width: 100% !important;
+          max-width: 600px !important;
         }
 
+        /* Скрываем ВСЕ лишние элементы */
+        .modal-content.export-mode .close-btn,
+        .modal-content.export-mode .download-btn,
         .modal-content.export-mode .modal-avatar-glow,
         .modal-content.export-mode .glow,
         .modal-content.export-mode .grid-overlay {
           display: none !important;
+          visibility: hidden !important;
+          opacity: 0 !important;
+          pointer-events: none !important;
         }
 
+        /* Отключаем анимации */
+        .modal-content.export-mode,
         .modal-content.export-mode * {
           animation: none !important;
           transition: none !important;
           transform: none !important;
+        }
+
+        /* Фикс для XP блока */
+        .modal-content.export-mode .score-value,
+        .modal-content.export-mode .modal-total-score {
+          background-clip: padding-box !important;
+          -webkit-background-clip: padding-box !important;
+          position: relative !important;
+          z-index: 1 !important;
         }
         /* === КОНЕЦ EXPORT MODE === */
         
