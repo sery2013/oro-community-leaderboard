@@ -234,7 +234,7 @@ export default function Leaderboard() {
           <div className="stat-item">
             <div className="stat-icon">💬</div>
             <div className="stat-content">
-              <span className="stat-label">48h Messages</span>
+              <span className="stat-label">7D Messages</span>
               <span className="stat-value">{serverStats.totalMessages.toLocaleString()}</span>
             </div>
           </div>
@@ -258,9 +258,9 @@ export default function Leaderboard() {
           <div className="stat-item">
             <div className="stat-icon">🐦</div>
             <div className="stat-content">
-              <span className="stat-label">48h Twitter Posts</span>
+              <span className="stat-label">30D Twitter Posts</span>
               <span className="stat-value highlight">{serverStats.twitterPosts24h}</span>
-              <span className="stat-sub">Total posts today</span>
+              <span className="stat-sub">Total posts </span>
             </div>
           </div>
         </div>
