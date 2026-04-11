@@ -124,7 +124,7 @@ export default function Leaderboard() {
       max-height: ${EXPORT_TWITTER_H}px;
       min-width: ${EXPORT_TWITTER_W}px;
       min-height: ${EXPORT_TWITTER_H}px;
-      padding: 22px 28px;
+      padding: 20px 26px;
       font-family: 'Space Grotesk', sans-serif;
       color: #fff;
       box-sizing: border-box;
@@ -133,11 +133,11 @@ export default function Leaderboard() {
       row-gap: 14px;
       align-content: stretch;
     ">
-      <div style="display: flex; align-items: center; gap: 22px; min-height: 0;">
+      <div style="display: flex; align-items: center; gap: 24px; min-height: 0;">
         <div style="
-          width: 102px;
-          height: 102px;
-          border-radius: 22px;
+          width: 124px;
+          height: 124px;
+          border-radius: 26px;
           border: 3px solid #FFA500;
           overflow: hidden;
           background: #000;
@@ -146,44 +146,47 @@ export default function Leaderboard() {
         ">
           <img src="${selectedUser.avatar_url}" style="width: 100%; height: 100%; object-fit: cover;" crossOrigin="anonymous" />
         </div>
-        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 5px;">
-          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;">
             <span style="
               background: linear-gradient(135deg, #FFA500, #FF8C00);
               color: #000;
-              padding: 5px 14px;
+              padding: 6px 16px;
               border-radius: 999px;
-              font-size: 11px;
+              font-size: 13px;
               font-weight: 800;
               letter-spacing: 0.5px;
+              white-space: nowrap;
+              flex-shrink: 0;
             ">RANK #${rank}</span>
-            <span style="font-size: 11px; color: rgba(255,255,255,0.45); font-family: ui-monospace, monospace;">
+            <span style="font-size: 12px; color: rgba(255,255,255,0.5); font-family: ui-monospace, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
               ID ${selectedUser.user_id}
             </span>
           </div>
           <div style="
-            font-size: 30px;
+            font-size: 36px;
             font-weight: 700;
-            line-height: 1.1;
+            line-height: 1.05;
             margin: 0;
             letter-spacing: -0.5px;
           ">${selectedUser.username}</div>
-          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
             ${selectedUser.discord_roles?.filter((id: string) => PRIORITY_ROLES[id]).map((id: string) => `
               <span style="
                 background: rgba(255,165,0,0.2);
                 color: #FFD700;
                 border: 1px solid rgba(255,165,0,0.45);
-                padding: 3px 9px;
-                border-radius: 6px;
-                font-size: 9px;
+                padding: 4px 11px;
+                border-radius: 8px;
+                font-size: 11px;
                 font-weight: 800;
-                letter-spacing: 0.6px;
+                letter-spacing: 0.5px;
                 text-transform: uppercase;
+                white-space: nowrap;
               ">${PRIORITY_ROLES[id]}</span>
-            `).join('') || '<span style="font-size:11px;color:rgba(255,255,255,0.35)">—</span>'}
+            `).join('') || '<span style="font-size:12px;color:rgba(255,255,255,0.35)">—</span>'}
           </div>
-          <div style="color: rgba(255,255,255,0.55); font-size: 12px;">
+          <div style="color: rgba(255,255,255,0.6); font-size: 14px; white-space: nowrap;">
             Member since ${formatDate(selectedUser.discord_joined_at)}
           </div>
         </div>
@@ -194,70 +197,81 @@ export default function Leaderboard() {
         min-width: 0;
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 14px;
+        gap: 16px;
         align-content: stretch;
       ">
         <div style="
           background: rgba(0,0,0,0.28);
           border: 1px solid rgba(255,165,0,0.35);
           border-radius: ${rPanel}px;
-          padding: 12px 14px;
+          padding: 14px 16px;
+          height: 100%;
+          min-height: 0;
           display: flex;
           flex-direction: column;
-          gap: 0;
+          box-sizing: border-box;
         ">
           <div style="
             color: #FFD700;
-            font-size: 9px;
+            font-size: 11px;
             font-weight: 700;
             letter-spacing: 2px;
             text-transform: uppercase;
-            margin: 0 0 8px;
-            padding-bottom: 8px;
+            margin: 0 0 10px;
+            padding-bottom: 10px;
             border-bottom: 1px solid rgba(255,165,0,0.35);
+            white-space: nowrap;
           ">Discord</div>
-          <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.08);">
-            <span style="color: rgba(255,255,255,0.72); font-size: 13px;">Messages</span>
-            <span style="font-weight: 700; font-size: 15px; color: #fff;">${selectedUser.discord_messages || 0}</span>
+          <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; gap: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.08);">
+            <span style="color: rgba(255,255,255,0.85); font-size: 17px; font-weight: 500; white-space: nowrap;">Messages</span>
+            <span style="font-weight: 800; font-size: 21px; color: #fff; white-space: nowrap; flex-shrink: 0;">${selectedUser.discord_messages || 0}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.08);">
-            <span style="color: rgba(255,255,255,0.72); font-size: 13px;">Active channels</span>
-            <span style="font-weight: 700; font-size: 15px; color: #fff;">${selectedUser.channels_count || 0}</span>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.08);">
+            <span style="color: rgba(255,255,255,0.85); font-size: 17px; font-weight: 500; white-space: nowrap;">Active channels</span>
+            <span style="font-weight: 800; font-size: 21px; color: #fff; white-space: nowrap; flex-shrink: 0;">${selectedUser.channels_count || 0}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 7px 0;">
-            <span style="color: rgba(255,255,255,0.72); font-size: 13px;">Discord roles</span>
-            <span style="font-weight: 700; font-size: 15px; color: #fff;">${selectedUser.discord_roles?.length || 0}</span>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 4px 0;">
+            <span style="color: rgba(255,255,255,0.85); font-size: 17px; font-weight: 500; white-space: nowrap;">Discord roles</span>
+            <span style="font-weight: 800; font-size: 21px; color: #fff; white-space: nowrap; flex-shrink: 0;">${selectedUser.discord_roles?.length || 0}</span>
+          </div>
           </div>
         </div>
         <div style="
           background: rgba(0,0,0,0.28);
           border: 1px solid rgba(255,165,0,0.35);
           border-radius: ${rPanel}px;
-          padding: 12px 14px;
+          padding: 14px 16px;
+          height: 100%;
+          min-height: 0;
           display: flex;
           flex-direction: column;
+          box-sizing: border-box;
         ">
           <div style="
             color: #FFD700;
-            font-size: 9px;
+            font-size: 11px;
             font-weight: 700;
             letter-spacing: 2px;
             text-transform: uppercase;
-            margin: 0 0 8px;
-            padding-bottom: 8px;
+            margin: 0 0 10px;
+            padding-bottom: 10px;
             border-bottom: 1px solid rgba(255,165,0,0.35);
+            white-space: nowrap;
           ">X (Twitter)</div>
-          <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.08);">
-            <span style="color: rgba(255,255,255,0.72); font-size: 13px;">Posts</span>
-            <span style="font-weight: 700; font-size: 15px; color: #fff;">${selectedUser.twitter_posts || 0}</span>
+          <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; gap: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.08);">
+            <span style="color: rgba(255,255,255,0.85); font-size: 17px; font-weight: 500; white-space: nowrap;">Posts</span>
+            <span style="font-weight: 800; font-size: 21px; color: #fff; white-space: nowrap; flex-shrink: 0;">${selectedUser.twitter_posts || 0}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.08);">
-            <span style="color: rgba(255,255,255,0.72); font-size: 13px;">Engagement index</span>
-            <span style="font-weight: 700; font-size: 15px; color: #fff;">${engagement}</span>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.08);">
+            <span style="color: rgba(255,255,255,0.85); font-size: 17px; font-weight: 500; white-space: nowrap;">Engagement index</span>
+            <span style="font-weight: 800; font-size: 21px; color: #fff; white-space: nowrap; flex-shrink: 0;">${engagement}</span>
           </div>
-          <div style="display: flex; justify-content: space-between; align-items: baseline; padding: 7px 0;">
-            <span style="color: rgba(255,255,255,0.72); font-size: 13px;">Impressions</span>
-            <span style="font-weight: 700; font-size: 15px; color: #fff;">${(selectedUser.twitter_views || 0).toLocaleString()}</span>
+          <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 4px 0;">
+            <span style="color: rgba(255,255,255,0.85); font-size: 17px; font-weight: 500; white-space: nowrap;">Impressions</span>
+            <span style="font-weight: 800; font-size: 21px; color: #fff; white-space: nowrap; flex-shrink: 0;">${(selectedUser.twitter_views || 0).toLocaleString()}</span>
+          </div>
           </div>
         </div>
       </div>
@@ -267,30 +281,30 @@ export default function Leaderboard() {
         background: linear-gradient(135deg, rgba(255,165,0,0.22), rgba(255,100,0,0.08));
         border: 2px solid rgba(255,165,0,0.45);
         border-radius: ${rInner}px;
-        padding: 14px 22px;
+        padding: 16px 24px;
         display: flex;
         justify-content: space-between;
         align-items: center;
         gap: 16px;
       ">
         <div style="min-width: 0;">
-          <div style="font-weight: 800; color: #fff; font-size: 13px; letter-spacing: 1.2px;">
+          <div style="font-weight: 800; color: #fff; font-size: 15px; letter-spacing: 1.4px; white-space: nowrap;">
             AGGREGATED NETWORK POWER
           </div>
-          <div style="color: rgba(255,255,255,0.55); font-size: 11px; margin-top: 3px;">
+          <div style="color: rgba(255,255,255,0.55); font-size: 12px; margin-top: 4px; white-space: nowrap;">
             Verified on-chain contribution
           </div>
         </div>
-        <div style="display: flex; align-items: baseline; gap: 10px; flex-shrink: 0;">
+        <div style="display: flex; align-items: baseline; gap: 12px; flex-shrink: 0;">
           <span style="
-            font-size: 52px;
+            font-size: 56px;
             font-weight: 800;
             color: #FFD700;
             line-height: 1;
             letter-spacing: -1px;
           ">${Math.floor(selectedUser.total_score)}</span>
           <span style="
-            font-size: 22px;
+            font-size: 26px;
             font-weight: 800;
             color: #FFA500;
             letter-spacing: 1px;
