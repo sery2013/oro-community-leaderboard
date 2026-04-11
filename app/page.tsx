@@ -94,92 +94,57 @@ export default function Leaderboard() {
   }, [searchQuery]);
 const createScreenshotCard = () => {
   if (!selectedUser) return null;
-  
   const rank = users.findIndex(u => u.user_id === selectedUser.user_id) + 1;
   
   return `
-    <div style="
-      background-color: #1a0f0a;
-      border: 4px solid #FFA500;
-      border-radius: 24px;
-      padding: 40px;
-      width: 560px;
-      font-family: 'Arial', sans-serif;
-      color: #ffffff;
-    ">
-      <table style="width: 100%; border-spacing: 0; margin-bottom: 30px;">
+    <div id="export-target" style="background-color: #1a0f0a; border: 4px solid #FFA500; border-radius: 24px; padding: 40px; width: 560px; color: #ffffff; font-family: sans-serif;">
+      <table border="0" cellpadding="0" cellspacing="0" style="width: 100%; margin-bottom: 30px;">
         <tr>
-          <td style="width: 110px; vertical-align: top;">
-            <div style="width: 85px; height: 85px; border-radius: 20px; border: 3px solid #FFA500; background: #000; overflow: hidden;">
-              <img src="${selectedUser.avatar_url}" style="width: 85px; height: 85px; object-fit: cover;" crossOrigin="anonymous" />
+          <td width="110" valign="top">
+            <div style="width: 90px; height: 90px; border: 3px solid #FFA500; border-radius: 20px; overflow: hidden; background: #000;">
+              <img src="${selectedUser.avatar_url}" width="90" height="90" style="display: block; object-fit: cover;" crossOrigin="anonymous" />
             </div>
           </td>
-          <td style="vertical-align: top; padding-top: 5px;">
-            <div style="background: #FFA500; color: #000; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: bold; width: fit-content; margin-bottom: 10px;">
+          <td valign="top" style="padding-top: 5px;">
+            <div style="background-color: #FFA500; color: #000; padding: 4px 12px; border-radius: 10px; font-size: 12px; font-weight: bold; width: 70px; text-align: center; margin-bottom: 10px;">
               RANK #${rank}
             </div>
-            <div style="font-size: 32px; font-weight: bold; color: #ffffff; margin-bottom: 10px;">
-              ${selectedUser.username}
-            </div>
-            <div style="margin-bottom: 5px;">
-              ${selectedUser.discord_roles?.filter((id: string) => PRIORITY_ROLES[id]).map((id: string) => `
-                <span style="background: rgba(255,165,0,0.2); border: 1px solid #FFA500; padding: 3px 8px; border-radius: 4px; font-size: 10px; color: #FFA500; margin-right: 8px;">
-                  ${PRIORITY_ROLES[id]}
-                </span>
-              `).join('') || ''}
-            </div>
-            <div style="color: #888; font-size: 13px; margin-top: 5px;">
-              Member since ${formatDate(selectedUser.discord_joined_at)}
-            </div>
+            <div style="font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1;">${selectedUser.username}</div>
+            <div style="color: #888; font-size: 14px;">Member since ${formatDate(selectedUser.discord_joined_at)}</div>
           </td>
         </tr>
       </table>
 
-      <table style="width: 100%; border-spacing: 0; margin-bottom: 30px;">
+      <table border="0" cellpadding="0" cellspacing="0" style="width: 100%; margin-bottom: 30px;">
         <tr>
-          <td style="width: 50%; vertical-align: top; padding-right: 20px;">
-            <div style="color: #FFD700; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 8px; margin-bottom: 15px;">
-              Discord Performance
-            </div>
-            <table style="width: 100%; color: #fff; font-size: 14px;">
-              <tr>
-                <td style="padding: 8px 0; border-bottom: 1px solid #333; color: #aaa;">Messages</td>
-                <td style="padding: 8px 0; border-bottom: 1px solid #333; text-align: right; font-weight: bold;">${selectedUser.discord_messages || 0}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #aaa;">Channels</td>
-                <td style="padding: 8px 0; text-align: right; font-weight: bold;">${selectedUser.channels_count || 0}</td>
-              </tr>
+          <td width="240" valign="top" style="border-right: 1px solid #333; padding-right: 20px;">
+            <div style="color: #FFD700; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 8px; margin-bottom: 15px;">Discord Performance</div>
+            <table width="100%">
+              <tr><td style="color: #aaa; padding: 5px 0;">Messages</td><td align="right" style="font-weight: bold;">${selectedUser.discord_messages || 0}</td></tr>
+              <tr><td style="color: #aaa; padding: 5px 0;">Channels</td><td align="right" style="font-weight: bold;">${selectedUser.channels_count || 0}</td></tr>
             </table>
           </td>
-          <td style="width: 50%; vertical-align: top; padding-left: 20px; border-left: 1px solid #333;">
-            <div style="color: #FFD700; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 8px; margin-bottom: 15px;">
-              X (Twitter) Impact
-            </div>
-            <table style="width: 100%; color: #fff; font-size: 14px;">
-              <tr>
-                <td style="padding: 8px 0; border-bottom: 1px solid #333; color: #aaa;">Posts</td>
-                <td style="padding: 8px 0; border-bottom: 1px solid #333; text-align: right; font-weight: bold;">${selectedUser.twitter_posts || 0}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #aaa;">Engagement</td>
-                <td style="padding: 8px 0; text-align: right; font-weight: bold;">${Math.round(((selectedUser.twitter_likes + selectedUser.twitter_replies) / (selectedUser.twitter_posts || 1)) * 10) / 10}</td>
-              </tr>
+          <td width="20">&nbsp;</td>
+          <td width="240" valign="top" style="padding-left: 10px;">
+            <div style="color: #FFD700; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 8px; margin-bottom: 15px;">X (Twitter) Impact</div>
+            <table width="100%">
+              <tr><td style="color: #aaa; padding: 5px 0;">Posts</td><td align="right" style="font-weight: bold;">${selectedUser.twitter_posts || 0}</td></tr>
+              <tr><td style="color: #aaa; padding: 5px 0;">Impact</td><td align="right" style="font-weight: bold;">${Math.round(((selectedUser.twitter_likes + selectedUser.twitter_replies) / (selectedUser.twitter_posts || 1)) * 10) / 10}</td></tr>
             </table>
           </td>
         </tr>
       </table>
 
-      <div style="background: #25150d; border: 2px solid #FFA500; border-radius: 20px; padding: 25px;">
-        <table style="width: 100%; border-spacing: 0;">
+      <div style="background-color: #25150d; border: 2px solid #FFA500; border-radius: 20px; padding: 25px;">
+        <table width="100%">
           <tr>
             <td>
-              <div style="font-weight: bold; color: #fff; font-size: 16px;">AGGREGATED NETWORK POWER</div>
-              <div style="color: #888; font-size: 12px; margin-top: 4px;">Verified on-chain contribution</div>
+              <div style="font-weight: bold; font-size: 16px;">AGGREGATED POWER</div>
+              <div style="color: #888; font-size: 12px;">Verified contribution</div>
             </td>
-            <td style="text-align: right;">
+            <td align="right">
               <span style="font-size: 48px; font-weight: bold; color: #FFD700;">${Math.floor(selectedUser.total_score)}</span>
-              <span style="font-size: 24px; font-weight: bold; color: #FFA500; margin-left: 5px;">XP</span>
+              <span style="font-size: 20px; font-weight: bold; color: #FFA500; margin-left: 5px;">XP</span>
             </td>
           </tr>
         </table>
