@@ -95,13 +95,10 @@ export default function Leaderboard() {
 
   // === ИСПРАВЛЕННАЯ ФУНКЦИЯ СКАЧИВАНИЯ ===
   const downloadCard = async () => {
-  if (typeof window === 'undefined' || !modalRef.current || !selectedUser) {
-    console.warn('Download prerequisites not met');
-    return;
-  }
+  if (typeof window === 'undefined' || !selectedUser) return;
 
   try {
-    // 1. Ждём html2canvas
+    // Ждём html2canvas
     let h2c = (window as any).html2canvas;
     let retries = 0;
     while (!h2c && retries < 30) {
@@ -111,36 +108,36 @@ export default function Leaderboard() {
     }
     
     if (!h2c) {
-      alert("⚠️ html2canvas не загрузился. Подожди и попробуй снова.");
+      alert("html2canvas не загрузился");
       return;
     }
 
-    // 2. Находим modal-content (саму карточку)
-    const cardElement = modalRef.current;
-    if (!cardElement) {
-      throw new Error("Modal content not found");
-    }
+    // Создаём упрощённую карточку
+    const cardHTML = createScreenshotCard();
+    if (!cardHTML) return;
 
-    // 3. Включаем режим экспорта
-    cardElement.classList.add('export-mode');
-    await new Promise(resolve => setTimeout(resolve, 500));
+    // Создаём временный элемент
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = cardHTML;
+    tempDiv.style.position = 'absolute';
+    tempDiv.style.left = '-9999px';
+    tempDiv.style.top = '0';
+    document.body.appendChild(tempDiv);
 
-    console.log('📸 Starting capture...');
+    console.log('📸 Capturing simplified card...');
 
-    // 4. Пробуем захватить с МИНИМАЛЬНЫМИ настройками
-    const canvas = await h2c(cardElement, {
+    // Делаем скриншот
+    const canvas = await h2c(tempDiv, {
       useCORS: true,
       allowTaint: true,
       scale: 2,
       backgroundColor: '#1a0f0a',
-      imageTimeout: 15000,
       logging: false,
-      foreignObjectRendering: false,
-      // Не используем clone - это главная проблема
-      // @ts-ignore - иногда помогает явно указать
-      proxy: null,
-      onclone: null
+      foreignObjectRendering: false
     });
+
+    // Удаляем временный элемент
+    document.body.removeChild(tempDiv);
 
     if (canvas.width === 0 || canvas.height === 0) {
       throw new Error("Canvas empty");
@@ -148,10 +145,10 @@ export default function Leaderboard() {
     
     console.log(`✅ Canvas: ${canvas.width}x${canvas.height}`);
 
-    // 5. Скачиваем
+    // Скачиваем
     canvas.toBlob((blob) => {
       if (!blob) {
-        alert("❌ Не удалось создать blob");
+        alert("Не удалось создать blob");
         return;
       }
       
@@ -169,11 +166,7 @@ export default function Leaderboard() {
 
   } catch (err: any) {
     console.error("🔥 Error:", err);
-    alert(`❌ Ошибка:\n${err.message || err}`);
-  } finally {
-    if (modalRef.current) {
-      modalRef.current.classList.remove('export-mode');
-    }
+    alert(`Ошибка: ${err.message || err}`);
   }
 };
 
