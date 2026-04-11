@@ -7,6 +7,9 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabase = (supabaseUrl && supabaseAnonKey) ? createClient(supabaseUrl, supabaseAnonKey) : null;
 const ITEMS_PER_PAGE = 25;
 
+/** Скругление карточки в скачиваемом PNG (px). 0 = квадратные углы по обводке; 28–40 — как «плашка» на превью. */
+const EXPORT_CARD_RADIUS_PX = 32;
+
 // === ДОБАВЛЕННЫЙ БЛОК РОЛЕЙ ===
 const PRIORITY_ROLES: Record<string, string> = {
   "1468552780238033009": "Bronze",
@@ -98,11 +101,15 @@ export default function Leaderboard() {
 
     const rank = users.findIndex(u => u.user_id === selectedUser.user_id) + 1;
 
+    const r = EXPORT_CARD_RADIUS_PX;
+    const rInner = Math.max(12, r - 8);
+
     return `
     <div style="
       background: #1a0f0a;
       border: 3px solid #FFA500;
-      border-radius: 24px;
+      border-radius: ${r}px;
+      overflow: hidden;
       padding: 40px;
       width: 580px;
       font-family: 'Space Grotesk', sans-serif;
@@ -208,7 +215,7 @@ export default function Leaderboard() {
       <div style="
         background: linear-gradient(135deg, rgba(255,165,0,0.2), rgba(255,140,0,0.1));
         border: 2px solid rgba(255,165,0,0.4);
-        border-radius: 20px;
+        border-radius: ${rInner}px;
         padding: 25px 30px;
         display: flex;
         justify-content: space-between;
