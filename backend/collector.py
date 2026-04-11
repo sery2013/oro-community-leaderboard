@@ -1,38 +1,30 @@
-import os
-import asyncio
-import aiohttp
-import requests
-import re
-import time
-import sys
+import os, asyncio, aiohttp, requests, re, time, sys
 from datetime import datetime, timedelta, timezone
-from supabase import create_client, Client
+from supabase import create_client
 
 def log(msg):
     print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
     sys.stdout.flush()
 
-# === КОНФИГУРАЦИЯ (Берем из секретов / Environment Variables) ===
+# === КОНФИГУРАЦИЯ (Берется из секретов) ===
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 SOCIALDATA_API_KEY = os.getenv("SOCIALDATA_API_KEY")
 
-# Ветки (можно тоже вынести в секреты, если хочешь)
 GUILD_ID = "1349045850331938826"
-CONTENT_THREAD_ID = "1351488160206426227"
-XP_BOT_THREAD_ID = "1351492950768619552"
+CONTENT_THREAD_ID = "1351488160206426227"  # Ветка с твитами (30 дней)
+XP_BOT_THREAD_ID = "1351492950768619552"   # Ветка, где бот пишет XP
 THREAD_IDS = [
     "1351487907042431027", "1351488160206426227", "1351488253332557867", 
     "1351492950768619552", "1367864741548261416", "1371904712001065000", 
-    "1465733325149835295", "1371110511919497226", "1366338962057396316"
+    "1465733325149835295", "1371110511919497226", "1366338962813222993", 
+    "1371904910324404325", "1371413462982594620", "1372149550793490505", 
+    "1372149324192153620", "1372149873188536330", "1372242189240897596", 
+    "1351488556924932128", "1389273374748049439"
 ]
 
-# Лимиты времени
-DISCORD_TARGET = datetime.now(timezone.utc) - timedelta(days=2)
-CONTENT_TARGET = datetime.now(timezone.utc) - timedelta(days=30)
-
-# === HEADERS (Эмуляция реального браузера) ===
+# === УЛУЧШЕННЫЕ HEADERS (ОТПЕЧАТКИ БРАУЗЕРА) ===
 HEADERS = {
     'Authorization': DISCORD_TOKEN,
     'Content-Type': 'application/json',
@@ -41,20 +33,24 @@ HEADERS = {
     'Accept-Language': 'en-US,en;q=0.9,ru;q=0.8',
     'Origin': 'https://discord.com',
     'Referer': 'https://discord.com/channels/@me',
-    'Sec-Fetch-Dest': 'empty',
-    'Sec-Fetch-Mode': 'cors',
-    'Sec-Fetch-Site': 'same-origin'
+    'sec-ch-ua': '"Chromium";v="124", "Google Chrome";v="124", "Not-A.Brand";v="99"',
+    'sec-ch-ua-mobile': '?0',
+    'sec-ch-ua-platform': '"Windows"',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-origin',
+    'x-debug-options': 'bugReporterEnabled',
+    'x-discord-locale': 'en-US'
 }
 
-# Инициализация Supabase
 if not SUPABASE_URL or not SUPABASE_KEY:
-    log("ОШИБКА: SUPABASE_URL или SUPABASE_KEY не найдены в секретах!")
+    log("Ошибка: Секреты Supabase не найдены!")
     sys.exit(1)
 
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-async def get_discord_messages(session, thread_id, is_content=False):
-    target_date = CONTENT_TARGET if is_content else DISCORD_TARGET
+async def get_discord_messages(session, thread_id, days=2):
+    target_date = datetime.now(timezone.utc) - timedelta(days=days)
     messages = []
     last_id = None
     
@@ -63,6 +59,11 @@ async def get_discord_messages(session, thread_id, is_content=False):
         if last_id: url += f"&before={last_id}"
         
         async with session.get(url, headers=HEADERS) as resp:
+            if resp.status == 429:
+                retry_after = (await resp.json()).get('retry_after', 1)
+                log(f"Rate limit! Пауза {retry_after} сек.")
+                await asyncio.sleep(retry_after)
+                continue
             if resp.status != 200:
                 log(f"Ошибка {resp.status} в ветке {thread_id}")
                 break
@@ -70,37 +71,32 @@ async def get_discord_messages(session, thread_id, is_content=False):
             if not batch: break
             
             for m in batch:
-                dt = datetime.fromisoformat(m['timestamp'].replace('Z', '+00:00'))
-                if dt < target_date: return messages
+                m_date = datetime.fromisoformat(m['timestamp'].replace('Z', '+00:00'))
+                if m_date < target_date: return messages
                 messages.append(m)
             last_id = batch[-1]['id']
-            await asyncio.sleep(0.5) # Пауза между страницами
+            await asyncio.sleep(0.5)
     return messages
 
-def parse_xp(text):
-    match = re.search(r'(\d[\d\s,.]*)\s*XP', text)
-    if match:
-        return int(match.group(1).replace(' ', '').replace(',', '').replace('.', ''))
-    return None
-
 async def main():
-    log("Запуск коллектора...")
+    log("Запуск обновления данных...")
     users = {}
     
-    # 1. Загружаем старые данные для кэша ролей
-    old_db = supabase.table("leaderboard_stats").select("*").execute()
-    old_map = {item['user_id']: item for item in old_db.data} if old_db.data else {}
+    # Кэш старых данных для сохранения ролей
+    old_res = supabase.table("leaderboard_stats").select("*").execute()
+    old_data = {item['user_id']: item for item in old_res.data} if old_res.data else {}
 
     async with aiohttp.ClientSession() as session:
         for tid in THREAD_IDS:
-            is_cont = (tid == CONTENT_THREAD_ID)
-            log(f"Парсинг ветки {tid}...")
-            msgs = await get_discord_messages(session, tid, is_cont)
+            is_content = (tid == CONTENT_THREAD_ID)
+            days = 30 if is_content else 2
+            log(f"Сбор сообщений: ветка {tid} за {days} дн.")
             
+            msgs = await get_discord_messages(session, tid, days)
             for m in msgs:
                 uid = m['author']['id']
                 if uid not in users:
-                    exist = old_map.get(uid, {})
+                    exist = old_data.get(uid, {})
                     users[uid] = {
                         "user_id": uid, "username": m['author']['username'],
                         "discord_messages": 0, "twitter_posts": 0, "total_score": 0,
@@ -108,35 +104,39 @@ async def main():
                         "discord_joined_at": exist.get("discord_joined_at")
                     }
                 
-                if is_cont:
-                    if any(x in m['content'] for x in ["t.co", "x.com", "twitter.com"]):
+                if is_content:
+                    if any(x in m['content'].lower() for x in ["t.co", "x.com", "twitter.com"]):
                         users[uid]["twitter_posts"] += 1
                 else:
                     users[uid]["discord_messages"] += 1
 
-        # 2. Парсим XP от бота
-        log("Сбор XP из логов бота...")
-        bot_msgs = await get_discord_messages(session, XP_BOT_THREAD_ID, False)
-        for bm in bot_msgs:
-            if bm.get('mentions'):
-                t_uid = bm['mentions'][0]['id']
+        # Парсинг XP из логов бота
+        log("Обновление XP из логов бота...")
+        xp_msgs = await get_discord_messages(session, XP_BOT_THREAD_ID, 2)
+        for xm in xp_msgs:
+            if xm.get('mentions'):
+                t_uid = xm['mentions'][0]['id']
                 if t_uid in users:
-                    val = parse_xp(bm['content'])
-                    if val: users[t_uid]["total_score"] = val
+                    match = re.search(r'(\d[\d\s,.]*)\s*XP', xm['content'])
+                    if match:
+                        val = int(match.group(1).replace(' ', '').replace(',', '').replace('.', ''))
+                        # Берем максимальное значение XP из найденных за 2 дня
+                        if val > users[t_uid]["total_score"]:
+                            users[t_uid]["total_score"] = val
 
-    # 3. Сохранение результатов
+    # Сохранение результатов
     now = datetime.now(timezone.utc).isoformat()
-    final_list = []
-    for uid, data in users.items():
-        if data["total_score"] == 0:
-            data["total_score"] = data["discord_messages"] * 10
-        data["updated_at"] = now
-        final_list.append(data)
+    payload = []
+    for uid, info in users.items():
+        if info["total_score"] == 0:
+            info["total_score"] = info["discord_messages"] * 10
+        info["updated_at"] = now
+        payload.append(info)
 
-    if final_list:
-        for i in range(0, len(final_list), 50):
-            supabase.table("leaderboard_stats").upsert(final_list[i:i+50]).execute()
-        log(f"Успешно синхронизировано {len(final_list)} пользователей.")
+    if payload:
+        for i in range(0, len(payload), 50):
+            supabase.table("leaderboard_stats").upsert(payload[i:i+50]).execute()
+        log(f"Синхронизация завершена. Обработано {len(payload)} пользователей.")
 
 if __name__ == "__main__":
     asyncio.run(main())
