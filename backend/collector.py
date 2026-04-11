@@ -33,7 +33,7 @@ HEADERS = {
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 async def get_twitter_stats(session, tweet_url):
-    """Получает статистику твита через SocialData"""
+    """Получает статистику твита через SocialData (без ретвитов)"""
     tweet_id_match = re.search(r"status/(\d+)", tweet_url)
     if not tweet_id_match: return None
     
@@ -47,8 +47,7 @@ async def get_twitter_stats(session, tweet_url):
                 data = await resp.json()
                 return {
                     "views": data.get("views_count", 0) or 0,
-                    "likes": data.get("favorite_count", 0) or 0,
-                    "retweets": data.get("retweet_count", 0) or 0
+                    "likes": data.get("favorite_count", 0) or 0
                 }
     except Exception as e:
         log(f"Ошибка SocialData для {tweet_id}: {e}")
@@ -81,7 +80,7 @@ async def get_discord_messages(session, thread_id, days=2):
 async def main():
     log("Запуск...")
     users = {}
-    user_tweets = {} # Храним ссылки на твиты для каждого юзера
+    user_tweets = {} 
     
     old_res = supabase.table("leaderboard_stats").select("*").execute()
     old_data = {item['user_id']: item for item in old_res.data} if old_res.data else {}
@@ -99,7 +98,7 @@ async def main():
                     users[uid] = {
                         "user_id": uid, "username": m['author']['username'],
                         "discord_messages": 0, "twitter_posts": 0, "total_score": 0,
-                        "twitter_likes": 0, "twitter_views": 0, "twitter_retweets": 0,
+                        "twitter_likes": 0, "twitter_views": 0,
                         "discord_roles": exist.get("discord_roles", []),
                         "discord_joined_at": exist.get("discord_joined_at")
                     }
@@ -126,20 +125,18 @@ async def main():
                         if val > users[t_uid]["total_score"]:
                             users[t_uid]["total_score"] = val
 
-        # НОВЫЙ БЛОК: Сбор статистики Twitter через SocialData
+        # Сбор статистики Twitter (только лайки и просмотры)
         if SOCIALDATA_API_KEY:
             log(f"Запрос статистики SocialData для {len(user_tweets)} активных авторов...")
             for uid, links in user_tweets.items():
-                # Берем только последние 5 уникальных твитов, чтобы не тратить все лимиты SocialData
                 for link in list(set(links))[:5]: 
                     stats = await get_twitter_stats(session, link)
                     if stats:
                         users[uid]["twitter_likes"] += stats["likes"]
                         users[uid]["twitter_views"] += stats["views"]
-                        users[uid]["twitter_retweets"] += stats["retweets"]
-                        # Добавляем к скору: 1 лайк = 2 XP, 1 ретвит = 5 XP (можно поменять)
-                        users[uid]["total_score"] += (stats["likes"] * 2) + (stats["retweets"] * 5)
-                    await asyncio.sleep(0.2) # Небольшая пауза для API
+                        # Добавляем к скору: 1 лайк = 2 XP
+                        users[uid]["total_score"] += (stats["likes"] * 2)
+                    await asyncio.sleep(0.2)
 
     # Финализация
     now = datetime.now(timezone.utc).isoformat()
