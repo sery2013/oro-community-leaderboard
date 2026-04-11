@@ -185,7 +185,7 @@ export default function Leaderboard() {
         ">
           <img src="${selectedUser.avatar_url}" style="width: 100%; height: 100%; object-fit: cover;" crossOrigin="anonymous" />
         </div>
-        <div style="flex: 1.15; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px;">
+        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px;">
           <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;">
             <span style="
               background: linear-gradient(135deg, #FFA500, #FF8C00);
@@ -230,8 +230,8 @@ export default function Leaderboard() {
           </div>
         </div>
         <div style="
-          flex: 1;
-          min-width: 220px;
+          flex: 1.25;
+          min-width: 300px;
           min-height: 132px;
           border: 2px solid rgba(255,180,60,0.85);
           border-radius: 22px;
@@ -242,6 +242,7 @@ export default function Leaderboard() {
           align-items: center;
           justify-content: center;
           box-sizing: border-box;
+          overflow: hidden;
         ">
           <div style="
             width: 100%;
@@ -250,20 +251,23 @@ export default function Leaderboard() {
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 14px 16px;
+            padding: 12px 14px;
             box-sizing: border-box;
           ">
             <span style="
               font-family: inherit;
               font-weight: 700;
-              font-size: 27px;
+              font-size: 20px;
               color: #FFD700;
-              letter-spacing: 0.06em;
+              letter-spacing: 0.12em;
               text-transform: uppercase;
               text-align: center;
-              line-height: 1.15;
-              white-space: nowrap;
-            ">ORO · DISCORD · CARD · ACTIVITY</span>
+              line-height: 1.35;
+              max-width: 100%;
+              word-wrap: break-word;
+              overflow-wrap: break-word;
+              hyphens: manual;
+            ">DISCORD · ORO · CARD<br/>ACTIVITY</span>
           </div>
         </div>
       </div>
@@ -371,19 +375,22 @@ export default function Leaderboard() {
             Verified on-chain contribution
           </div>
         </div>
-        <div style="display: flex; align-items: baseline; gap: 12px; flex-shrink: 0;">
+        <div style="display: flex; align-items: baseline; justify-content: flex-end; gap: 20px; flex-shrink: 0; white-space: nowrap;">
           <span style="
             font-size: 56px;
             font-weight: 800;
             color: #FFD700;
             line-height: 1;
-            letter-spacing: -1px;
+            letter-spacing: 0.02em;
+            padding-right: 4px;
           ">${Math.floor(selectedUser.total_score)}</span>
           <span style="
             font-size: 26px;
             font-weight: 800;
             color: #FFA500;
-            letter-spacing: 1px;
+            letter-spacing: 2px;
+            padding-left: 6px;
+            margin-left: 2px;
           ">XP</span>
         </div>
       </div>
