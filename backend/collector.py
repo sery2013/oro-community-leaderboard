@@ -1,4 +1,4 @@
-import os, asyncio, aiohttp, requests, re, time, sys
+import os, asyncio, aiohttp, requests, re, time, sys, random
 from datetime import datetime, timedelta, timezone
 from supabase import create_client
 
@@ -75,7 +75,7 @@ async def get_discord_messages(session, thread_id, days=2):
                 if m_date < target_date: return messages
                 messages.append(m)
             last_id = batch[-1]['id']
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(random.uniform(0.4, 0.8))
     return messages
 
 async def main():
