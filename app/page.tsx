@@ -12,6 +12,35 @@ const EXPORT_CARD_RADIUS_PX = 28;
 /** Размер под пост в X (Twitter): 1200×675 ≈ 16:9, как у типичного image preview. */
 const EXPORT_TWITTER_W = 1200;
 const EXPORT_TWITTER_H = 675;
+const EXPORT_CARD_FONT = "'Fredoka', system-ui, sans-serif";
+const FREDOKA_FONT_STYLESHEET =
+  'https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap';
+
+function ensureFredokaForExport(): Promise<void> {
+  if (typeof document === 'undefined') return Promise.resolve();
+  const existing = document.getElementById('oro-export-fredoka-font');
+  if (existing) {
+    return document.fonts.ready;
+  }
+  return new Promise((resolve) => {
+    const link = document.createElement('link');
+    link.id = 'oro-export-fredoka-font';
+    link.rel = 'stylesheet';
+    link.href = FREDOKA_FONT_STYLESHEET;
+    link.onload = () => resolve();
+    link.onerror = () => resolve();
+    document.head.appendChild(link);
+    setTimeout(resolve, 900);
+  }).then(async () => {
+    try {
+      await document.fonts.load('700 24px Fredoka');
+      await document.fonts.load('600 20px Fredoka');
+    } catch {
+      /* ignore */
+    }
+    return document.fonts.ready;
+  });
+}
 
 // === ДОБАВЛЕННЫЙ БЛОК РОЛЕЙ ===
 const PRIORITY_ROLES: Record<string, string> = {
@@ -125,7 +154,7 @@ export default function Leaderboard() {
       min-width: ${EXPORT_TWITTER_W}px;
       min-height: ${EXPORT_TWITTER_H}px;
       padding: 20px 26px;
-      font-family: 'Space Grotesk', sans-serif;
+      font-family: ${EXPORT_CARD_FONT};
       color: #fff;
       box-sizing: border-box;
       display: grid;
@@ -133,7 +162,7 @@ export default function Leaderboard() {
       row-gap: 14px;
       align-content: stretch;
     ">
-      <div style="display: flex; align-items: center; gap: 24px; min-height: 0;">
+      <div style="display: flex; align-items: stretch; gap: 18px; min-height: 0;">
         <div style="
           width: 124px;
           height: 124px;
@@ -142,11 +171,12 @@ export default function Leaderboard() {
           overflow: hidden;
           background: #000;
           flex-shrink: 0;
+          align-self: center;
           box-shadow: 0 8px 24px rgba(0,0,0,0.45);
         ">
           <img src="${selectedUser.avatar_url}" style="width: 100%; height: 100%; object-fit: cover;" crossOrigin="anonymous" />
         </div>
-        <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px;">
+        <div style="flex: 1.15; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 8px;">
           <div style="display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;">
             <span style="
               background: linear-gradient(135deg, #FFA500, #FF8C00);
@@ -154,12 +184,12 @@ export default function Leaderboard() {
               padding: 6px 16px;
               border-radius: 999px;
               font-size: 13px;
-              font-weight: 800;
+              font-weight: 700;
               letter-spacing: 0.5px;
               white-space: nowrap;
               flex-shrink: 0;
             ">RANK #${rank}</span>
-            <span style="font-size: 12px; color: rgba(255,255,255,0.5); font-family: ui-monospace, monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+            <span style="font-size: 12px; color: rgba(255,255,255,0.5); font-family: ${EXPORT_CARD_FONT}; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
               ID ${selectedUser.user_id}
             </span>
           </div>
@@ -179,7 +209,7 @@ export default function Leaderboard() {
                 padding: 4px 11px;
                 border-radius: 8px;
                 font-size: 11px;
-                font-weight: 800;
+                font-weight: 700;
                 letter-spacing: 0.5px;
                 text-transform: uppercase;
                 white-space: nowrap;
@@ -188,6 +218,51 @@ export default function Leaderboard() {
           </div>
           <div style="color: rgba(255,255,255,0.6); font-size: 14px; white-space: nowrap;">
             Member since ${formatDate(selectedUser.discord_joined_at)}
+          </div>
+        </div>
+        <div style="
+          flex: 1;
+          min-width: 200px;
+          min-height: 124px;
+          border: 2px solid rgba(255,180,60,0.75);
+          border-radius: 22px;
+          background: linear-gradient(165deg, rgba(255,165,0,0.14) 0%, rgba(0,0,0,0.35) 55%, rgba(255,140,0,0.08) 100%);
+          box-shadow: inset 0 0 0 1px rgba(255,215,0,0.12), 0 6px 20px rgba(0,0,0,0.35);
+          padding: 12px 14px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-sizing: border-box;
+        ">
+          <div style="width: 100%; height: 100%; display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 8px;">
+            <div style="
+              display: flex;
+              flex-direction: row;
+              justify-content: space-between;
+              align-items: center;
+              gap: 6px;
+              width: 100%;
+              color: #FFD700;
+              font-weight: 700;
+              font-size: 21px;
+              letter-spacing: 0.04em;
+              text-transform: uppercase;
+              line-height: 1.05;
+            ">
+              <span style="flex: 1; text-align: center;">ORO</span>
+              <span style="flex: 1; text-align: center;">DISCORD</span>
+              <span style="flex: 1; text-align: center;">CARD</span>
+            </div>
+            <div style="
+              text-align: center;
+              color: #FFB020;
+              font-weight: 700;
+              font-size: 26px;
+              letter-spacing: 0.55em;
+              text-indent: 0.55em;
+              text-transform: uppercase;
+              line-height: 1;
+            ">ACTIVITY</div>
           </div>
         </div>
       </div>
@@ -347,6 +422,8 @@ export default function Leaderboard() {
       if (!target) {
         throw new Error('Card root missing');
       }
+
+      await ensureFredokaForExport();
 
       const blob = await hti.toBlob(target, {
         pixelRatio: 2,
