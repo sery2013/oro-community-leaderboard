@@ -107,9 +107,12 @@ const createScreenshotCard = () => {
       font-family: 'Space Grotesk', sans-serif;
       color: #fff;
     ">
-      <!-- Header -->
-      <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 30px;">
+      <!-- Header (Fix: Жесткая структура: Аватар + Колонка текста) -->
+      <div style="display: flex; align-items: flex-start; gap: 24px; margin-bottom: 30px;">
+        
+        <!-- Avatar (Left) -->
         <div style="
+          min-width: 80px;
           width: 80px; height: 80px;
           border-radius: 20px;
           border: 3px solid #FFA500;
@@ -118,7 +121,11 @@ const createScreenshotCard = () => {
         ">
           <img src="${selectedUser.avatar_url}" style="width: 100%; height: 100%; object-fit: cover;" crossOrigin="anonymous" />
         </div>
-        <div>
+
+        <!-- Text Column (Right) -->
+        <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+          
+          <!-- 1. Rank Badge (Strictly Top) -->
           <div style="
             display: inline-block;
             background: #FFA500;
@@ -127,29 +134,39 @@ const createScreenshotCard = () => {
             border-radius: 12px;
             font-size: 12px;
             font-weight: 700;
-            margin-bottom: 8px;
+            width: fit-content;
           ">RANK #${rank}</div>
-          <h1 style="margin: 0; font-size: 32px; font-weight: 700;">${selectedUser.username}</h1>
-          <div style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
+
+          <!-- 2. Username (Center) -->
+          <div style="font-size: 32px; font-weight: 700; line-height: 1.1; margin: 0;">
+            ${selectedUser.username}
+          </div>
+
+          <!-- 3. Roles + ID Row (Bottom of text block) -->
+          <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
             ${selectedUser.discord_roles?.filter((id: string) => PRIORITY_ROLES[id]).map((id: string) => `
               <span style="
                 background: rgba(255,165,0,0.2);
                 border: 1px solid rgba(255,165,0,0.4);
-                padding: 2px 8px;
+                padding: 3px 8px;
                 border-radius: 4px;
-                font-size: 9px;
+                font-size: 10px;
                 font-weight: 700;
                 color: #FFA500;
                 text-transform: uppercase;
               ">${PRIORITY_ROLES[id]}</span>
             `).join('') || ''}
-            <span style="font-size: 10px; color: rgba(255,255,255,0.4); font-family: monospace;">
+            
+            <span style="font-size: 11px; color: rgba(255,255,255,0.4); font-family: monospace; margin-left: 4px;">
               ID: ${selectedUser.user_id}
             </span>
           </div>
-          <p style="margin: 8px 0 0; color: rgba(255,255,255,0.6); font-size: 14px;">
+
+          <!-- 4. Date -->
+          <p style="margin: 4px 0 0; color: rgba(255,255,255,0.6); font-size: 14px;">
             Member since ${formatDate(selectedUser.discord_joined_at)}
           </p>
+
         </div>
       </div>
 
@@ -192,7 +209,7 @@ const createScreenshotCard = () => {
         </div>
       </div>
 
-      <!-- XP Block (FIXED: увеличил line-height, убрал shadow) -->
+      <!-- XP Block -->
       <div style="
         background: linear-gradient(135deg, rgba(255,165,0,0.2), rgba(255,140,0,0.1));
         border: 2px solid rgba(255,165,0,0.4);
@@ -215,7 +232,7 @@ const createScreenshotCard = () => {
             font-size: 48px;
             font-weight: 700;
             color: #FFD700;
-            line-height: 1.2; 
+            line-height: 1.2;
             text-shadow: none;
             font-family: 'Space Grotesk', sans-serif;
           ">${Math.floor(selectedUser.total_score)}</div>
