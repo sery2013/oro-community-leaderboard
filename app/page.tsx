@@ -103,19 +103,19 @@ const createScreenshotCard = () => {
       border: 3px solid #FFA500;
       border-radius: 24px;
       padding: 40px;
-      width: 560px;
+      width: 580px;
       font-family: 'Space Grotesk', sans-serif;
       color: #fff;
       box-sizing: border-box;
     ">
-      <!-- Header (Fix: Absolute Positioning for Perfect Alignment) -->
-      <div style="position: relative; height: 110px; width: 100%; margin-bottom: 30px;">
+      <!-- Header -->
+      <div style="display: flex; align-items: flex-start; gap: 20px; margin-bottom: 30px;">
         
-        <!-- Avatar (Fixed Position) -->
+        <!-- Avatar -->
         <div style="
-          position: absolute;
-          top: 0; left: 0;
-          width: 80px; height: 80px;
+          min-width: 80px;
+          width: 80px; 
+          height: 80px;
           border-radius: 20px;
           border: 3px solid #FFA500;
           overflow: hidden;
@@ -124,67 +124,64 @@ const createScreenshotCard = () => {
           <img src="${selectedUser.avatar_url}" style="width: 100%; height: 100%; object-fit: cover;" crossOrigin="anonymous" />
         </div>
 
-        <!-- Rank Badge (Fixed Position: Top Right of Avatar) -->
-        <div style="
-          position: absolute;
-          top: 0; left: 95px;
-          background: #FFA500;
-          color: #000;
-          padding: 4px 12px;
-          border-radius: 12px;
-          font-size: 12px;
-          font-weight: 700;
-        ">RANK #${rank}</div>
-
-        <!-- Username (Fixed Position: Below Rank) -->
-        <div style="
-          position: absolute;
-          top: 28px; left: 95px;
-          font-size: 32px; 
-          font-weight: 700; 
-          line-height: 1.1; 
-          white-space: nowrap;
-        ">${selectedUser.username}</div>
-
-        <!-- Roles + ID Row (Fixed Position: Below Name) -->
-        <div style="
-          position: absolute;
-          top: 62px; left: 95px;
-          display: flex; 
-          align-items: center; 
-          gap: 10px;
-        ">
-          ${selectedUser.discord_roles?.filter((id: string) => PRIORITY_ROLES[id]).map((id: string) => `
-            <span style="
-              background: #FFA500;
-              color: #000;
-              padding: 3px 8px;
-              border-radius: 4px;
-              font-size: 10px;
-              font-weight: 700;
-              text-transform: uppercase;
-            ">${PRIORITY_ROLES[id]}</span>
-          `).join('') || ''}
+        <!-- Text Content -->
+        <div style="flex: 1; display: flex; flex-direction: column; gap: 6px;">
           
-          <span style="
-            font-size: 11px; 
-            color: rgba(255,255,255,0.5); 
-            font-family: monospace;
+          <!-- Rank -->
+          <div style="
+            display: inline-block;
+            background: #FFA500;
+            color: #000;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            width: fit-content;
+            margin-bottom: 4px;
+          ">RANK #${rank}</div>
+
+          <!-- Username -->
+          <div style="
+            font-size: 32px; 
+            font-weight: 700; 
+            line-height: 1.2;
+            margin: 0;
+            padding: 0;
+          ">${selectedUser.username}</div>
+
+          <!-- Roles + ID -->
+          <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 2px;">
+            ${selectedUser.discord_roles?.filter((id: string) => PRIORITY_ROLES[id]).map((id: string) => `
+              <span style="
+                background: #FFA500;
+                color: #000;
+                padding: 3px 8px;
+                border-radius: 4px;
+                font-size: 10px;
+                font-weight: 700;
+                text-transform: uppercase;
+              ">${PRIORITY_ROLES[id]}</span>
+            `).join('') || ''}
+            
+            <span style="
+              font-size: 11px; 
+              color: rgba(255,255,255,0.5); 
+              font-family: monospace;
+            ">
+              ID: ${selectedUser.user_id}
+            </span>
+          </div>
+
+          <!-- Date -->
+          <div style="
+            color: rgba(255,255,255,0.6); 
+            font-size: 14px;
+            margin-top: 4px;
           ">
-            ID: ${selectedUser.user_id}
-          </span>
-        </div>
+            Member since ${formatDate(selectedUser.discord_joined_at)}
+          </div>
 
-        <!-- Date (Fixed Position: Bottom of Header) -->
-        <div style="
-          position: absolute;
-          top: 85px; left: 95px;
-          color: rgba(255,255,255,0.6); 
-          font-size: 14px;
-        ">
-          Member since ${formatDate(selectedUser.discord_joined_at)}
         </div>
-
       </div>
 
       <!-- Stats Grid -->
