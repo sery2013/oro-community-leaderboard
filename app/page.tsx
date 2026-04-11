@@ -94,45 +94,41 @@ export default function Leaderboard() {
   }, [searchQuery]);
 
   const downloadCard = async () => {
-    if (!modalRef.current || !selectedUser) return;
+    // Проверка на наличие window важна для билда Next.js
+    if (typeof window === 'undefined' || !modalRef.current || !selectedUser) return;
+    
     const cardElement = modalRef.current.querySelector('.modal-content') as HTMLElement;
     if (!cardElement) return;
 
     try {
       cardElement.classList.add('export-mode');
-      // Даем паузу, чтобы стили применились
-      await new Promise(resolve => setTimeout(resolve, 300));
+      // Небольшая задержка для применения CSS
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
-      const canvas = await (window as any).html2canvas(cardElement, {
-        useCORS: true,
-        allowTaint: false,
-        scale: 2,
-        backgroundColor: '#1a0f0a',
-        imageTimeout: 15000,
-        logging: false
-      });
+      const h2c = (window as any).html2canvas;
+      
+      if (h2c) {
+        const canvas = await h2c(cardElement, {
+          useCORS: true,
+          allowTaint: false,
+          scale: 2,
+          backgroundColor: '#1a0f0a',
+          imageTimeout: 15000,
+          logging: false
+        });
 
-      const link = document.createElement('a');
-      link.download = `oro-identity-${selectedUser.username}.png`;
-      link.href = canvas.toDataURL("image/png", 1.0);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+        const dataUrl = canvas.toDataURL("image/png");
+        const link = document.createElement('a');
+        link.download = `card-${selectedUser.username}.png`;
+        link.href = dataUrl;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        console.error("html2canvas not found on window");
+      }
     } catch (err) {
-      console.error("Download Error:", err);
-    } finally {
-      cardElement.classList.remove('export-mode');
-    }
-  };
-
-      const link = document.createElement('a');
-      link.download = `oro-identity-${selectedUser.username}.png`;
-      link.href = canvas.toDataURL("image/png", 1.0);
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (err) {
-      console.error("Download Error:", err);
+      console.error("Export error:", err);
     } finally {
       cardElement.classList.remove('export-mode');
     }
