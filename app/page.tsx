@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef, useMemo } from 'react';
+import { useEffect, useState, useRef, useMemo, type MouseEvent, type CSSProperties } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -500,7 +500,7 @@ export default function Leaderboard() {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const handleOverlayClick = (e: React.MouseEvent) => {
+  const handleOverlayClick = (e: MouseEvent) => {
     if (e.target === e.currentTarget) setSelectedUser(null);
   };
 
@@ -612,7 +612,7 @@ export default function Leaderboard() {
                 <div
                   key={user.user_id}
                   className="contributor-card"
-                  style={{ '--i': index } as React.CSSProperties}
+                  style={{ '--i': index } as CSSProperties}
                   onClick={() => setSelectedUser(user)}
                 >
                   <div className="card-identity">
