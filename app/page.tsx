@@ -92,7 +92,149 @@ export default function Leaderboard() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery]);
+// Создаёт упрощённую версию карточки для скриншота
+const createScreenshotCard = () => {
+  if (!selectedUser) return null;
+  
+  const rank = users.findIndex(u => u.user_id === selectedUser.user_id) + 1;
+  
+  return `
+    <div style="
+      background: #1a0f0a;
+      border: 3px solid #FFA500;
+      border-radius: 24px;
+      padding: 40px;
+      width: 560px;
+      font-family: 'Space Grotesk', sans-serif;
+      color: #fff;
+    ">
+      <!-- Header -->
+      <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 30px;">
+        <div style="
+          width: 80px; height: 80px;
+          border-radius: 20px;
+          border: 3px solid #FFA500;
+          overflow: hidden;
+          background: #000;
+        ">
+          <img src="${selectedUser.avatar_url}" style="width: 100%; height: 100%; object-fit: cover;" />
+        </div>
+        <div>
+          <div style="
+            display: inline-block;
+            background: #FFA500;
+            color: #000;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 700;
+            margin-bottom: 8px;
+          ">RANK #${rank}</div>
+          <h1 style="margin: 0; font-size: 32px; font-weight: 700;">${selectedUser.username}</h1>
+          <div style="display: flex; gap: 10px; align-items: center; margin-top: 8px;">
+            ${selectedUser.discord_roles?.filter((id: string) => PRIORITY_ROLES[id]).map((id: string) => `
+              <span style="
+                background: rgba(255,165,0,0.2);
+                border: 1px solid rgba(255,165,0,0.4);
+                padding: 2px 8px;
+                border-radius: 4px;
+                font-size: 9px;
+                font-weight: 700;
+                color: #FFA500;
+                text-transform: uppercase;
+              ">${PRIORITY_ROLES[id]}</span>
+            `).join('') || ''}
+            <span style="font-size: 10px; color: rgba(255,255,255,0.4); font-family: monospace;">
+              ID: ${selectedUser.user_id}
+            </span>
+          </div>
+          <p style="margin: 8px 0 0; color: rgba(255,255,255,0.6); font-size: 14px;">
+            Member since ${formatDate(selectedUser.discord_joined_at)}
+          </p>
+        </div>
+      </div>
 
+      <!-- Stats Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+        <div>
+          <h3 style="color: #FFD700; font-size: 11px; letter-spacing: 2px; margin: 0 0 15px; text-transform: uppercase; border-bottom: 1px solid rgba(255,165,0,0.4); padding-bottom: 10px;">
+            Discord Performance
+          </h3>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <span style="color: rgba(255,255,255,0.8); font-size: 14px;">Messages</span>
+            <span style="font-weight: 700;">${selectedUser.discord_messages || 0}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <span style="color: rgba(255,255,255,0.8); font-size: 14px;">Active Channels</span>
+            <span style="font-weight: 700;">${selectedUser.channels_count || 0}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+            <span style="color: rgba(255,255,255,0.8); font-size: 14px;">Discord Roles</span>
+            <span style="font-weight: 700;">${selectedUser.discord_roles?.length || 0}</span>
+          </div>
+        </div>
+        
+        <div>
+          <h3 style="color: #FFD700; font-size: 11px; letter-spacing: 2px; margin: 0 0 15px; text-transform: uppercase; border-bottom: 1px solid rgba(255,165,0,0.4); padding-bottom: 10px;">
+            X (Twitter) Impact
+          </h3>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <span style="color: rgba(255,255,255,0.8); font-size: 14px;">Total Posts</span>
+            <span style="font-weight: 700;">${selectedUser.twitter_posts || 0}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <span style="color: rgba(255,255,255,0.8); font-size: 14px;">Engagement Index</span>
+            <span style="font-weight: 700;">${Math.round(((selectedUser.twitter_likes + selectedUser.twitter_replies) / (selectedUser.twitter_posts || 1)) * 10) / 10}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+            <span style="color: rgba(255,255,255,0.8); font-size: 14px;">Total Impressions</span>
+            <span style="font-weight: 700;">${(selectedUser.twitter_views || 0).toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- XP Block -->
+      <div style="
+        background: linear-gradient(135deg, rgba(255,165,0,0.2), rgba(255,140,0,0.1));
+        border: 2px solid rgba(255,165,0,0.4);
+        border-radius: 20px;
+        padding: 25px 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      ">
+        <div>
+          <div style="font-weight: 700; color: #fff; font-size: 16px; margin: 0;">
+            AGGREGATED NETWORK POWER
+          </div>
+          <div style="color: rgba(255,255,255,0.6); font-size: 12px; margin-top: 4px;">
+            Verified on-chain contribution
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div style="
+            font-size: 48px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+          ">${Math.floor(selectedUser.total_score)}</div>
+          <div style="
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #FFD700, #FFA500);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-top: 8px;
+          ">XP</div>
+        </div>
+      </div>
+    </div>
+  `;
+};
   // === ИСПРАВЛЕННАЯ ФУНКЦИЯ СКАЧИВАНИЯ ===
   const downloadCard = async () => {
   if (typeof window === 'undefined' || !selectedUser) return;
