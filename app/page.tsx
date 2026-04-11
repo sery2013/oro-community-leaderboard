@@ -94,42 +94,32 @@ export default function Leaderboard() {
   }, [searchQuery]);
 
   const downloadCard = async () => {
-    console.log("Кнопка нажата, начинаем экспорт..."); // Проверка в консоли
-    if (!modalRef.current || !selectedUser) {
-      console.error("Ошибка: modalRef или selectedUser отсутствуют");
-      return;
-    }
-    
+    if (!modalRef.current || !selectedUser) return;
     const cardElement = modalRef.current.querySelector('.modal-content') as HTMLElement;
-    if (!cardElement) {
-      console.error("Ошибка: .modal-content не найден");
-      return;
-    }
+    if (!cardElement) return;
 
     try {
       cardElement.classList.add('export-mode');
+      // Даем паузу, чтобы стили применились
       await new Promise(resolve => setTimeout(resolve, 300));
 
-      console.log("Запускаем html2canvas...");
       const canvas = await (window as any).html2canvas(cardElement, {
         useCORS: true,
         allowTaint: false,
         scale: 2,
         backgroundColor: '#1a0f0a',
         imageTimeout: 15000,
-        logging: true // Включаем логи самой библиотеки
+        logging: false
       });
 
-      console.log("Canvas создан, скачиваем файл...");
       const link = document.createElement('a');
       link.download = `oro-identity-${selectedUser.username}.png`;
       link.href = canvas.toDataURL("image/png", 1.0);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      console.log("Успешно!");
     } catch (err) {
-      console.error("Критическая ошибка при скачивании:", err);
+      console.error("Download Error:", err);
     } finally {
       cardElement.classList.remove('export-mode');
     }
