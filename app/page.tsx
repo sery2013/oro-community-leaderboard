@@ -192,7 +192,7 @@ const createScreenshotCard = () => {
         </div>
       </div>
 
-      <!-- XP Block (FIXED: убран градиент текста, заменён на сплошной цвет + тень) -->
+      <!-- XP Block (FIXED: увеличил line-height, убрал shadow) -->
       <div style="
         background: linear-gradient(135deg, rgba(255,165,0,0.2), rgba(255,140,0,0.1));
         border: 2px solid rgba(255,165,0,0.4);
@@ -215,15 +215,18 @@ const createScreenshotCard = () => {
             font-size: 48px;
             font-weight: 700;
             color: #FFD700;
-            line-height: 1;
-            text-shadow: 0 0 20px rgba(255,215,0,0.3);
+            line-height: 1.2; 
+            text-shadow: none;
+            font-family: 'Space Grotesk', sans-serif;
           ">${Math.floor(selectedUser.total_score)}</div>
           <div style="
             font-size: 32px;
             font-weight: 700;
             color: #FFA500;
             margin-top: 8px;
-            text-shadow: 0 0 15px rgba(255,165,0,0.3);
+            line-height: 1.2;
+            text-shadow: none;
+            font-family: 'Space Grotesk', sans-serif;
           ">XP</div>
         </div>
       </div>
