@@ -1,25 +1,38 @@
+import os
+import asyncio
+import aiohttp
 import requests
-import time
-from datetime import datetime, timedelta, timezone
 import re
+import time
+import sys
+from datetime import datetime, timedelta, timezone
 from supabase import create_client, Client
 
-# === CONFIGURATION ===
-SUPABASE_URL = "YOUR_SUPABASE_URL"
-SUPABASE_KEY = "YOUR_SUPABASE_KEY"
-DISCORD_TOKEN = "YOUR_DISCORD_TOKEN"
-SOCIALDATA_API_KEY = "YOUR_SOCIALDATA_API_KEY"
+def log(msg):
+    print(f"[{datetime.now().strftime('%H:%M:%S')}] {msg}")
+    sys.stdout.flush()
 
-# Ветки Discord
-THREAD_IDS = ["123...", "456..."]  # Список всех веток для мониторинга
-CONTENT_THREAD_ID = "123..."      # Ветка с твитами (контентом)
-XP_BOT_THREAD_ID = "789..."       # Ветка, где бот пишет XP
+# === КОНФИГУРАЦИЯ (Берем из секретов / Environment Variables) ===
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
+SOCIALDATA_API_KEY = os.getenv("SOCIALDATA_API_KEY")
 
-# Настройки времени
+# Ветки (можно тоже вынести в секреты, если хочешь)
+GUILD_ID = "1349045850331938826"
+CONTENT_THREAD_ID = "1351488160206426227"
+XP_BOT_THREAD_ID = "1351492950768619552"
+THREAD_IDS = [
+    "1351487907042431027", "1351488160206426227", "1351488253332557867", 
+    "1351492950768619552", "1367864741548261416", "1371904712001065000", 
+    "1465733325149835295", "1371110511919497226", "1366338962057396316"
+]
+
+# Лимиты времени
 DISCORD_TARGET = datetime.now(timezone.utc) - timedelta(days=2)
 CONTENT_TARGET = datetime.now(timezone.utc) - timedelta(days=30)
 
-# === ОБНОВЛЕННЫЕ HEADERS (Эмуляция браузера) ===
+# === HEADERS (Эмуляция реального браузера) ===
 HEADERS = {
     'Authorization': DISCORD_TOKEN,
     'Content-Type': 'application/json',
@@ -30,114 +43,100 @@ HEADERS = {
     'Referer': 'https://discord.com/channels/@me',
     'Sec-Fetch-Dest': 'empty',
     'Sec-Fetch-Mode': 'cors',
-    'Sec-Fetch-Site': 'same-origin',
-    'X-Debug-Options': 'bugReporterEnabled',
-    'Process-Primary': 'true'
+    'Sec-Fetch-Site': 'same-origin'
 }
+
+# Инициализация Supabase
+if not SUPABASE_URL or not SUPABASE_KEY:
+    log("ОШИБКА: SUPABASE_URL или SUPABASE_KEY не найдены в секретах!")
+    sys.exit(1)
 
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-def get_discord_messages(thread_id, is_content=False):
+async def get_discord_messages(session, thread_id, is_content=False):
     target_date = CONTENT_TARGET if is_content else DISCORD_TARGET
     messages = []
     last_id = None
     
     while True:
         url = f"https://discord.com/api/v9/channels/{thread_id}/messages?limit=100"
-        if last_id:
-            url += f"&before={last_id}"
+        if last_id: url += f"&before={last_id}"
         
-        response = requests.get(url, headers=HEADERS)
-        if response.status_code != 200:
-            print(f"Error {response.status_code} on {thread_id}")
-            break
+        async with session.get(url, headers=HEADERS) as resp:
+            if resp.status != 200:
+                log(f"Ошибка {resp.status} в ветке {thread_id}")
+                break
+            batch = await resp.json()
+            if not batch: break
             
-        batch = response.json()
-        if not batch:
-            break
-            
-        for msg in batch:
-            msg_date = datetime.fromisoformat(msg['timestamp'])
-            if msg_date < target_date:
-                return messages
-            messages.append(msg)
-            
-        last_id = batch[-1]['id']
-        time.sleep(1) # Пауза для имитации человеческого чтения
+            for m in batch:
+                dt = datetime.fromisoformat(m['timestamp'].replace('Z', '+00:00'))
+                if dt < target_date: return messages
+                messages.append(m)
+            last_id = batch[-1]['id']
+            await asyncio.sleep(0.5) # Пауза между страницами
     return messages
 
-def get_discord_member_info(user_id):
-    # Пытаемся получить инфо о ролях и дате вступления
-    # Чтобы не спамить API, можно сначала проверять в локальном кэше или старой базе
-    url = f"https://discord.com/api/v9/users/{user_id}"
-    try:
-        # Здесь логика получения инфо через профиль или участников сервера
-        # Для упрощения возвращаем структуру, если запрос прошел успешно
-        res = requests.get(url, headers=HEADERS)
-        if res.status_code == 200:
-            return res.json()
-    except:
-        return None
-    return None
-
-def parse_xp_from_bot(text):
-    # Регулярка для поиска XP в сообщениях бота
+def parse_xp(text):
     match = re.search(r'(\d[\d\s,.]*)\s*XP', text)
     if match:
-        clean_val = match.group(1).replace(' ', '').replace(',', '').replace('.', '')
-        return int(clean_val)
+        return int(match.group(1).replace(' ', '').replace(',', '').replace('.', ''))
     return None
 
-def process_leaderboard():
-    all_users = {}
-    now = datetime.now(timezone.utc).isoformat()
+async def main():
+    log("Запуск коллектора...")
+    users = {}
     
-    # Сначала берем старые данные для кэша ролей
-    old_data = supabase.table("leaderboard_stats").select("*").execute()
-    old_db_data = {item['user_id']: item for item in old_data.data} if old_data.data else {}
+    # 1. Загружаем старые данные для кэша ролей
+    old_db = supabase.table("leaderboard_stats").select("*").execute()
+    old_map = {item['user_id']: item for item in old_db.data} if old_db.data else {}
 
-    for t_id in THREAD_IDS:
-        is_content = (t_id == CONTENT_THREAD_ID)
-        msgs = get_discord_messages(t_id, is_content)
-        
-        for m in msgs:
-            u_id = m['author']['id']
-            if u_id not in all_users:
-                # Берем роли из старой базы, чтобы не запрашивать Discord заново
-                existing = old_db_data.get(u_id, {})
-                all_users[u_id] = {
-                    'user_id': u_id,
-                    'username': m['author']['username'],
-                    'discord_messages': 0,
-                    'twitter_posts': 0,
-                    'total_score': 0,
-                    'discord_roles': existing.get('discord_roles', []),
-                    'discord_joined_at': existing.get('discord_joined_at'),
-                    'updated_at': now
-                }
+    async with aiohttp.ClientSession() as session:
+        for tid in THREAD_IDS:
+            is_cont = (tid == CONTENT_THREAD_ID)
+            log(f"Парсинг ветки {tid}...")
+            msgs = await get_discord_messages(session, tid, is_cont)
             
-            if is_content:
-                # Логика поиска ссылок на твиты и проверки через tweet_cache
-                if "twitter.com" in m['content'] or "x.com" in m['content']:
-                    all_users[u_id]['twitter_posts'] += 1
-            else:
-                all_users[u_id]['discord_messages'] += 1
+            for m in msgs:
+                uid = m['author']['id']
+                if uid not in users:
+                    exist = old_map.get(uid, {})
+                    users[uid] = {
+                        "user_id": uid, "username": m['author']['username'],
+                        "discord_messages": 0, "twitter_posts": 0, "total_score": 0,
+                        "discord_roles": exist.get("discord_roles", []),
+                        "discord_joined_at": exist.get("discord_joined_at")
+                    }
+                
+                if is_cont:
+                    if any(x in m['content'] for x in ["t.co", "x.com", "twitter.com"]):
+                        users[uid]["twitter_posts"] += 1
+                else:
+                    users[uid]["discord_messages"] += 1
 
-    # Парсинг XP из ветки бота
-    bot_msgs = get_discord_messages(XP_BOT_THREAD_ID, False)
-    for bm in bot_msgs:
-        target_uid = bm.get('mentions', [{}])[0].get('id')
-        if target_uid and target_uid in all_users:
-            val = parse_xp_from_bot(bm['content'])
-            if val:
-                all_users[target_uid]['total_score'] = val
+        # 2. Парсим XP от бота
+        log("Сбор XP из логов бота...")
+        bot_msgs = await get_discord_messages(session, XP_BOT_THREAD_ID, False)
+        for bm in bot_msgs:
+            if bm.get('mentions'):
+                t_uid = bm['mentions'][0]['id']
+                if t_uid in users:
+                    val = parse_xp(bm['content'])
+                    if val: users[t_uid]["total_score"] = val
 
-    # Upsert в базу данных
-    user_list = list(all_users.values())
-    for i in range(0, len(user_list), 50):
-        batch = user_list[i:i+50]
-        supabase.table("leaderboard_stats").upsert(batch).execute()
-        print(f"Synced batch {i//50 + 1}")
+    # 3. Сохранение результатов
+    now = datetime.now(timezone.utc).isoformat()
+    final_list = []
+    for uid, data in users.items():
+        if data["total_score"] == 0:
+            data["total_score"] = data["discord_messages"] * 10
+        data["updated_at"] = now
+        final_list.append(data)
+
+    if final_list:
+        for i in range(0, len(final_list), 50):
+            supabase.table("leaderboard_stats").upsert(final_list[i:i+50]).execute()
+        log(f"Успешно синхронизировано {len(final_list)} пользователей.")
 
 if __name__ == "__main__":
-    process_leaderboard()
+    asyncio.run(main())
