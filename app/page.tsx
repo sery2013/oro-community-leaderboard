@@ -94,60 +94,175 @@ export default function Leaderboard() {
   }, [searchQuery]);
 const createScreenshotCard = () => {
   if (!selectedUser) return null;
+  
   const rank = users.findIndex(u => u.user_id === selectedUser.user_id) + 1;
   
   return `
-    <div id="export-target" style="background-color: #1a0f0a; border: 4px solid #FFA500; border-radius: 24px; padding: 40px; width: 560px; color: #ffffff; font-family: sans-serif;">
-      <table border="0" cellpadding="0" cellspacing="0" style="width: 100%; margin-bottom: 30px;">
-        <tr>
-          <td width="110" valign="top">
-            <div style="width: 90px; height: 90px; border: 3px solid #FFA500; border-radius: 20px; overflow: hidden; background: #000;">
-              <img src="${selectedUser.avatar_url}" width="90" height="90" style="display: block; object-fit: cover;" crossOrigin="anonymous" />
-            </div>
-          </td>
-          <td valign="top" style="padding-top: 5px;">
-            <div style="background-color: #FFA500; color: #000; padding: 4px 12px; border-radius: 10px; font-size: 12px; font-weight: bold; width: 70px; text-align: center; margin-bottom: 10px;">
-              RANK #${rank}
-            </div>
-            <div style="font-size: 32px; font-weight: bold; margin-bottom: 10px; line-height: 1;">${selectedUser.username}</div>
-            <div style="color: #888; font-size: 14px;">Member since ${formatDate(selectedUser.discord_joined_at)}</div>
-          </td>
-        </tr>
-      </table>
+    <div style="
+      background: #1a0f0a;
+      border: 3px solid #FFA500;
+      border-radius: 24px;
+      padding: 40px;
+      width: 560px;
+      font-family: 'Space Grotesk', sans-serif;
+      color: #fff;
+      box-sizing: border-box;
+    ">
+      <!-- Header (Fix: Absolute Positioning for Perfect Alignment) -->
+      <div style="position: relative; height: 110px; width: 100%; margin-bottom: 30px;">
+        
+        <!-- Avatar (Fixed Position) -->
+        <div style="
+          position: absolute;
+          top: 0; left: 0;
+          width: 80px; height: 80px;
+          border-radius: 20px;
+          border: 3px solid #FFA500;
+          overflow: hidden;
+          background: #000;
+        ">
+          <img src="${selectedUser.avatar_url}" style="width: 100%; height: 100%; object-fit: cover;" crossOrigin="anonymous" />
+        </div>
 
-      <table border="0" cellpadding="0" cellspacing="0" style="width: 100%; margin-bottom: 30px;">
-        <tr>
-          <td width="240" valign="top" style="border-right: 1px solid #333; padding-right: 20px;">
-            <div style="color: #FFD700; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 8px; margin-bottom: 15px;">Discord Performance</div>
-            <table width="100%">
-              <tr><td style="color: #aaa; padding: 5px 0;">Messages</td><td align="right" style="font-weight: bold;">${selectedUser.discord_messages || 0}</td></tr>
-              <tr><td style="color: #aaa; padding: 5px 0;">Channels</td><td align="right" style="font-weight: bold;">${selectedUser.channels_count || 0}</td></tr>
-            </table>
-          </td>
-          <td width="20">&nbsp;</td>
-          <td width="240" valign="top" style="padding-left: 10px;">
-            <div style="color: #FFD700; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #444; padding-bottom: 8px; margin-bottom: 15px;">X (Twitter) Impact</div>
-            <table width="100%">
-              <tr><td style="color: #aaa; padding: 5px 0;">Posts</td><td align="right" style="font-weight: bold;">${selectedUser.twitter_posts || 0}</td></tr>
-              <tr><td style="color: #aaa; padding: 5px 0;">Impact</td><td align="right" style="font-weight: bold;">${Math.round(((selectedUser.twitter_likes + selectedUser.twitter_replies) / (selectedUser.twitter_posts || 1)) * 10) / 10}</td></tr>
-            </table>
-          </td>
-        </tr>
-      </table>
+        <!-- Rank Badge (Fixed Position: Top Right of Avatar) -->
+        <div style="
+          position: absolute;
+          top: 0; left: 95px;
+          background: #FFA500;
+          color: #000;
+          padding: 4px 12px;
+          border-radius: 12px;
+          font-size: 12px;
+          font-weight: 700;
+        ">RANK #${rank}</div>
 
-      <div style="background-color: #25150d; border: 2px solid #FFA500; border-radius: 20px; padding: 25px;">
-        <table width="100%">
-          <tr>
-            <td>
-              <div style="font-weight: bold; font-size: 16px;">AGGREGATED POWER</div>
-              <div style="color: #888; font-size: 12px;">Verified contribution</div>
-            </td>
-            <td align="right">
-              <span style="font-size: 48px; font-weight: bold; color: #FFD700;">${Math.floor(selectedUser.total_score)}</span>
-              <span style="font-size: 20px; font-weight: bold; color: #FFA500; margin-left: 5px;">XP</span>
-            </td>
-          </tr>
-        </table>
+        <!-- Username (Fixed Position: Below Rank) -->
+        <div style="
+          position: absolute;
+          top: 28px; left: 95px;
+          font-size: 32px; 
+          font-weight: 700; 
+          line-height: 1.1; 
+          white-space: nowrap;
+        ">${selectedUser.username}</div>
+
+        <!-- Roles + ID Row (Fixed Position: Below Name) -->
+        <div style="
+          position: absolute;
+          top: 62px; left: 95px;
+          display: flex; 
+          align-items: center; 
+          gap: 10px;
+        ">
+          ${selectedUser.discord_roles?.filter((id: string) => PRIORITY_ROLES[id]).map((id: string) => `
+            <span style="
+              background: #FFA500;
+              color: #000;
+              padding: 3px 8px;
+              border-radius: 4px;
+              font-size: 10px;
+              font-weight: 700;
+              text-transform: uppercase;
+            ">${PRIORITY_ROLES[id]}</span>
+          `).join('') || ''}
+          
+          <span style="
+            font-size: 11px; 
+            color: rgba(255,255,255,0.5); 
+            font-family: monospace;
+          ">
+            ID: ${selectedUser.user_id}
+          </span>
+        </div>
+
+        <!-- Date (Fixed Position: Bottom of Header) -->
+        <div style="
+          position: absolute;
+          top: 85px; left: 95px;
+          color: rgba(255,255,255,0.6); 
+          font-size: 14px;
+        ">
+          Member since ${formatDate(selectedUser.discord_joined_at)}
+        </div>
+
+      </div>
+
+      <!-- Stats Grid -->
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+        <div>
+          <h3 style="color: #FFD700; font-size: 11px; letter-spacing: 2px; margin: 0 0 15px; text-transform: uppercase; border-bottom: 1px solid rgba(255,165,0,0.4); padding-bottom: 10px;">
+            Discord Performance
+          </h3>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <span style="color: rgba(255,255,255,0.8); font-size: 14px;">Messages</span>
+            <span style="font-weight: 700;">${selectedUser.discord_messages || 0}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <span style="color: rgba(255,255,255,0.8); font-size: 14px;">Active Channels</span>
+            <span style="font-weight: 700;">${selectedUser.channels_count || 0}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+            <span style="color: rgba(255,255,255,0.8); font-size: 14px;">Discord Roles</span>
+            <span style="font-weight: 700;">${selectedUser.discord_roles?.length || 0}</span>
+          </div>
+        </div>
+        
+        <div>
+          <h3 style="color: #FFD700; font-size: 11px; letter-spacing: 2px; margin: 0 0 15px; text-transform: uppercase; border-bottom: 1px solid rgba(255,165,0,0.4); padding-bottom: 10px;">
+            X (Twitter) Impact
+          </h3>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <span style="color: rgba(255,255,255,0.8); font-size: 14px;">Total Posts</span>
+            <span style="font-weight: 700;">${selectedUser.twitter_posts || 0}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
+            <span style="color: rgba(255,255,255,0.8); font-size: 14px;">Engagement Index</span>
+            <span style="font-weight: 700;">${Math.round(((selectedUser.twitter_likes + selectedUser.twitter_replies) / (selectedUser.twitter_posts || 1)) * 10) / 10}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+            <span style="color: rgba(255,255,255,0.8); font-size: 14px;">Total Impressions</span>
+            <span style="font-weight: 700;">${(selectedUser.twitter_views || 0).toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- XP Block -->
+      <div style="
+        background: linear-gradient(135deg, rgba(255,165,0,0.2), rgba(255,140,0,0.1));
+        border: 2px solid rgba(255,165,0,0.4);
+        border-radius: 20px;
+        padding: 25px 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      ">
+        <div>
+          <div style="font-weight: 700; color: #fff; font-size: 16px; margin: 0;">
+            AGGREGATED NETWORK POWER
+          </div>
+          <div style="color: rgba(255,255,255,0.6); font-size: 12px; margin-top: 4px;">
+            Verified on-chain contribution
+          </div>
+        </div>
+        <div style="text-align: right;">
+          <div style="
+            font-size: 48px;
+            font-weight: 700;
+            color: #FFD700;
+            line-height: 1.2;
+            text-shadow: none;
+            font-family: 'Space Grotesk', sans-serif;
+          ">${Math.floor(selectedUser.total_score)}</div>
+          <div style="
+            font-size: 32px;
+            font-weight: 700;
+            color: #FFA500;
+            margin-top: 8px;
+            line-height: 1.2;
+            text-shadow: none;
+            font-family: 'Space Grotesk', sans-serif;
+          ">XP</div>
+        </div>
       </div>
     </div>
   `;
