@@ -1443,11 +1443,21 @@ export default function Leaderboard() {
           box-shadow: 0 0 30px rgba(255,165,0,0.2);
         }
         
-        .modal-content.export-mode,
-        .contributor-card.export-mode {
+        .modal-content.export-mode {
           filter: none !important;
           backdrop-filter: none !important;
           box-shadow: none !important;
+          background: #1a0f0a !important; 
+          border: 2px solid #FFA500 !important;
+        }
+
+        .modal-content.export-mode .modal-avatar-glow {
+          display: none !important;
+        }
+
+        .modal-content.export-mode * {
+          animation: none !important;
+          transition: none !important;
         }
         
         @keyframes modalFadeIn { from { opacity: 0; } }
