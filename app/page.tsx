@@ -121,7 +121,7 @@ export default function Leaderboard() {
     cardElement.classList.add('export-mode');
     await new Promise(resolve => setTimeout(resolve, 400));
 
-    // 3. Делаем скриншот
+    // 3. Делаем скриншот с УПРОЩЁННЫМИ настройками
     console.log('📸 Starting capture...');
     const canvas = await h2c(cardElement, {
       useCORS: true,
@@ -130,11 +130,19 @@ export default function Leaderboard() {
       backgroundColor: '#1a0f0a',
       imageTimeout: 20000,
       logging: false,
-      foreignObjectRendering: false, // 🔥 Важно: отключаем, чтобы не падало из-за CSS
+      foreignObjectRendering: false,
+      clone: false, // 🔥 ВАЖНО: отключаем клонирование DOM
       ignoreElements: (el: Element) => 
         el.classList.contains('download-btn') || 
         el.classList.contains('close-btn') ||
-        el.classList.contains('export-mode')
+        el.classList.contains('export-mode'),
+      // Игнорируем iframe если есть
+      onclone: (clonedDoc: Document) => {
+        // Удаляем все iframe из клона
+        clonedDoc.querySelectorAll('iframe').forEach((iframe) => {
+          iframe.remove();
+        });
+      }
     });
 
     // 4. Проверка: если канвас пустой
@@ -143,7 +151,7 @@ export default function Leaderboard() {
     }
     console.log(`✅ Canvas created: ${canvas.width}x${canvas.height}`);
 
-    // 5. Конвертация в Blob (надёжнее чем toDataURL)
+    // 5. Конвертация в Blob
     canvas.toBlob((blob) => {
       if (!blob) {
         alert("❌ Не удалось создать изображение. Проверь консоль.");
@@ -158,14 +166,13 @@ export default function Leaderboard() {
       link.click();
       document.body.removeChild(link);
       
-      // Очистка памяти
       setTimeout(() => URL.revokeObjectURL(url), 100);
       console.log('💾 Download triggered');
     }, 'image/png');
 
   } catch (err: any) {
     console.error("🔥 Export error:", err);
-    alert(`❌ Ошибка скачивания:\n${err.message || err}\n\nСмотри консоль (F12) для деталей.`);
+    alert(`❌ Ошибка скачивания:\n${err.message || err}\n\nПопробуй обновить страницу.`);
   } finally {
     cardElement.classList.remove('export-mode');
   }
