@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef, useMemo, type MouseEvent, type CSSProperties } from 'react';
+import { useEffect, useState, useRef, useMemo, type MouseEvent as ReactMouseEvent, type CSSProperties } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -16,13 +16,14 @@ const EXPORT_CARD_FONT = "'Fredoka', system-ui, sans-serif";
 const FREDOKA_FONT_STYLESHEET =
   'https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&display=swap';
 
-function ensureFredokaForExport(): Promise<void> {
-  if (typeof document === 'undefined') return Promise.resolve();
+async function ensureFredokaForExport(): Promise<void> {
+  if (typeof document === 'undefined') return;
   const existing = document.getElementById('oro-export-fredoka-font');
   if (existing) {
-    return document.fonts.ready;
+    await document.fonts.ready;
+    return;
   }
-  return new Promise((resolve) => {
+  await new Promise<void>((resolve) => {
     const link = document.createElement('link');
     link.id = 'oro-export-fredoka-font';
     link.rel = 'stylesheet';
@@ -31,16 +32,15 @@ function ensureFredokaForExport(): Promise<void> {
     link.onerror = () => resolve();
     document.head.appendChild(link);
     setTimeout(resolve, 900);
-  }).then(async () => {
-    try {
-      await document.fonts.load('700 28px Fredoka');
-      await document.fonts.load('700 24px Fredoka');
-      await document.fonts.load('600 20px Fredoka');
-    } catch {
-      /* ignore */
-    }
-    return document.fonts.ready;
   });
+  try {
+    await document.fonts.load('700 28px Fredoka');
+    await document.fonts.load('700 24px Fredoka');
+    await document.fonts.load('600 20px Fredoka');
+  } catch {
+    /* ignore */
+  }
+  await document.fonts.ready;
 }
 
 // === ДОБАВЛЕННЫЙ БЛОК РОЛЕЙ ===
@@ -500,7 +500,7 @@ export default function Leaderboard() {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const handleOverlayClick = (e: MouseEvent) => {
+  const handleOverlayClick = (e: ReactMouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) setSelectedUser(null);
   };
 
