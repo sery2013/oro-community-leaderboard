@@ -33,7 +33,7 @@ HEADERS = {
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 async def get_twitter_stats(session, tweet_url):
-    """Получает статистику твита через SocialData (без ретвитов)"""
+    """Получает статистику твита через SocialData"""
     tweet_id_match = re.search(r"status/(\d+)", tweet_url)
     if not tweet_id_match: return None
     
@@ -74,20 +74,22 @@ async def get_discord_messages(session, thread_id, days=2):
             for m in batch:
                 m_date = datetime.fromisoformat(m['timestamp'].replace('Z', '+00:00'))
                 if m_date < target_date: 
-                    log(f"--- Завершено. Всего в канале {thread_id}: {total_fetched + len(messages)} сообщ.")
+                    log(f"--- Завершено. Собрано в {thread_id}: {len(messages)} сообщ.")
                     return messages
                 messages.append(m)
             
             total_fetched += len(batch)
             last_id = batch[-1]['id']
-            # Тот самый лог «пачки по 100»
-            log(f"   [+] Загружено {total_fetched} сообщений из {thread_id}...")
+            # Лог прогресса пачек
+            log(f"   [+] Пройдено {total_fetched} сообщений...")
             
-            await asyncio.sleep(0.4)
+            # ВЕРНУЛ ДВОЙНУЮ ЗАДЕРЖКУ (РАНДОМ)
+            await asyncio.sleep(random.uniform(0.4, 0.8))
+            
     return messages
 
 async def main():
-    log("Запуск...")
+    log("Запуск коллектора...")
     users = {}
     user_tweets = {} 
     
@@ -121,8 +123,7 @@ async def main():
                 else:
                     users[uid]["discord_messages"] += 1
 
-        # Собираем XP Бота (14 дней)
-        log("Обработка XP из сообщений...")
+        log("Анализ XP бота...")
         xp_msgs = await get_discord_messages(session, XP_BOT_THREAD_ID, 14)
         for xm in xp_msgs:
             if xm.get('mentions'):
@@ -134,9 +135,8 @@ async def main():
                         if val > users[t_uid]["total_score"]:
                             users[t_uid]["total_score"] = val
 
-        # Сбор статистики Twitter
         if SOCIALDATA_API_KEY:
-            log(f"Запрос статистики SocialData для {len(user_tweets)} активных авторов...")
+            log(f"Сбор статистики SocialData ({len(user_tweets)} авторов)...")
             processed_tweets = 0
             for uid, links in user_tweets.items():
                 for link in list(set(links))[:5]: 
@@ -149,9 +149,8 @@ async def main():
                     processed_tweets += 1
                     if processed_tweets % 10 == 0:
                         log(f"   статистика: проверено {processed_tweets} ссылок...")
-                    await asyncio.sleep(0.2)
+                    await asyncio.sleep(random.uniform(0.2, 0.4))
 
-    # Финализация
     now = datetime.now(timezone.utc).isoformat()
     payload = []
     for uid, info in users.items():
@@ -161,11 +160,11 @@ async def main():
         payload.append(info)
 
     if payload:
-        log(f"Обновление базы данных (порции по 50 записей)...")
+        log(f"Синхронизация с базой (пачки по 50)...")
         for i in range(0, len(payload), 50):
             supabase.table("leaderboard_stats").upsert(payload[i:i+50]).execute()
-            log(f"   [v] Отправлено юзеров: {min(i+50, len(payload))}/{len(payload)}")
-        log(f"Готово. Обработано {len(payload)} юзеров.")
+            log(f"   [v] Прогресс: {min(i+50, len(payload))}/{len(payload)} юзеров")
+        log("Готово!")
 
 if __name__ == "__main__":
     asyncio.run(main())
