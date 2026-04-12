@@ -257,7 +257,7 @@ export default function Leaderboard() {
             <span style="
               font-family: inherit;
               font-weight: 700;
-              font-size: 20px;
+              font-size: 24px;
               color: #FFD700;
               letter-spacing: 0.12em;
               text-transform: uppercase;
