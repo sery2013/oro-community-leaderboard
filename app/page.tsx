@@ -255,19 +255,16 @@ export default function Leaderboard() {
             box-sizing: border-box;
           ">
             <span style="
-              font-family: inherit;
-              font-weight: 700;
-              font-size: 24px;
-              color: #FFD700;
-              letter-spacing: 0.12em;
-              text-transform: uppercase;
-              text-align: center;
-              line-height: 1.35;
-              max-width: 100%;
-              word-wrap: break-word;
-              overflow-wrap: break-word;
-              hyphens: manual;
-            ">DISCORD ORO CARD ACTIVITY</span>
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 22px;
+  color: #FFD700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.2;
+  white-space: nowrap;
+">DISCORD ORO CARD ACTIVITY</span>
           </div>
         </div>
       </div>
