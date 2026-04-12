@@ -15,7 +15,6 @@ SOCIALDATA_API_KEY = os.getenv("SOCIALDATA_API_KEY")
 CONTENT_THREAD_ID = "1389273374748049439"
 XP_BOT_THREAD_ID = "1351492950768619552"
 
-# Список каналов для сбора обычных сообщений
 THREAD_IDS = [
     "1351487907042431027", "1351488160206426227", "1351488253332557867", 
     "1367864741548261416", "1465733325149835295", "1371110511919497226", 
@@ -33,7 +32,7 @@ HEADERS = {
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 async def get_twitter_stats(session, tweet_url):
-    """Статистика твита (Лайки, Просмотры, Комменты)"""
+    """Запрос статистики из API SocialData"""
     tweet_id_match = re.search(r"status/(\d+)", tweet_url)
     if not tweet_id_match: return None
     
@@ -50,12 +49,13 @@ async def get_twitter_stats(session, tweet_url):
                     "likes": data.get("favorite_count", 0) or 0,
                     "replies": data.get("reply_count", 0) or 0
                 }
+            elif resp.status == 429:
+                log(f"   [!] Лимит SocialData API. Пропуск твита {tweet_id}")
     except Exception as e:
         log(f"Ошибка SocialData для {tweet_id}: {e}")
     return None
 
 async def get_discord_messages(session, thread_id, days):
-    """Сбор сообщений с сохранением отпечатков"""
     target_date = datetime.now(timezone.utc) - timedelta(days=days)
     messages = []
     last_id = None
@@ -68,8 +68,7 @@ async def get_discord_messages(session, thread_id, days):
         
         async with session.get(url, headers=HEADERS) as resp:
             if resp.status == 429:
-                wait = (await resp.json()).get('retry_after', 2)
-                log(f"   [!] Лимит Discord. Ждем {wait} сек...")
+                wait = (await resp.json()).get('retry_after', 5)
                 await asyncio.sleep(wait)
                 continue
             if resp.status != 200: break
@@ -85,27 +84,31 @@ async def get_discord_messages(session, thread_id, days):
             
             total_fetched += len(batch)
             last_id = batch[-1]['id']
-            if total_fetched % 500 == 0:
-                log(f"   [+] Пройдено {total_fetched}...")
-            
-            # ДВОЙНАЯ ЗАДЕРЖКА (БЕЗОПАСНОСТЬ)
-            await asyncio.sleep(random.uniform(0.4, 0.8))
+            if total_fetched % 500 == 0: log(f"   [+] Пройдено {total_fetched}...")
+            await asyncio.sleep(random.uniform(0.5, 1.0))
             
     return messages
 
 async def main():
-    log("Запуск коллектора (Приоритет: Twitter)...")
+    log("Запуск коллектора (Версия: Кеш + Regex + Handle Filter)...")
     users = {}
     user_tweets = {} 
     
-    # Загружаем старые данные для сохранения ролей
+    # 1. Загружаем старые данные и КЕШ твитов
     old_res = supabase.table("leaderboard_stats").select("*").execute()
     old_data = {item['user_id']: item for item in old_res.data} if old_res.data else {}
 
+    cache_res = supabase.table("tweet_cache").select("*").execute()
+    tweet_cache = {item['tweet_url']: item for item in cache_res.data} if cache_res.data else {}
+
     async with aiohttp.ClientSession() as session:
-        # ЭТАП 1: TWITTER (30 ДНЕЙ) - САМЫЙ ВАЖНЫЙ
-        log(">>> ШАГ 1: Сбор контента (30 дней)")
+        # ШАГ 1: TWITTER (30 ДНЕЙ)
+        log(">>> ШАГ 1: Сбор контента (Твиттер-ссылки)...")
         content_msgs = await get_discord_messages(session, CONTENT_THREAD_ID, 30)
+        
+        # Регулярка для x.com, twitter.com, mobile и коротких ссылок /i/status/
+        twitter_pattern = r'https?://(?:www\.|mobile\.)?(?:x\.com|twitter\.com)/[a-zA-Z0-9_]+/status/\d+'
+        
         for m in content_msgs:
             uid = m['author']['id']
             if uid not in users:
@@ -118,30 +121,43 @@ async def main():
                     "discord_joined_at": exist.get("discord_joined_at")
                 }
             
-            links = re.findall(r'(https?://[^\s]+(?:x\.com|twitter\.com)[^\s]+)', m['content'].lower())
-            if links:
-                users[uid]["twitter_posts"] += len(links)
+            # Ищем ссылки (игнорируем регистр)
+            found = re.findall(twitter_pattern, m['content'], re.IGNORECASE)
+            if found:
+                # Чистим ссылки от мусора (?s=20) и переводим в ловеркейс для кеша
+                clean_links = [link.split('?')[0].lower() for link in found]
                 if uid not in user_tweets: user_tweets[uid] = []
-                user_tweets[uid].extend(links)
+                user_tweets[uid].extend(clean_links)
 
-        # ЭТАП 2: SOCIAL DATA API
-        if SOCIALDATA_API_KEY and user_tweets:
-            log(f">>> ШАГ 2: Статистика Twitter ({len(user_tweets)} авторов)")
-            count = 0
+        # ШАГ 2: ОБРАБОТКА СТАТИСТИКИ (API + КЕШ)
+        if user_tweets:
+            log(f">>> ШАГ 2: Статистика твитов ({len(user_tweets)} авторов)...")
             for uid, links in user_tweets.items():
-                for link in list(set(links))[:5]: 
-                    stats = await get_twitter_stats(session, link)
-                    if stats:
-                        users[uid]["twitter_likes"] += stats["likes"]
-                        users[uid]["twitter_views"] += stats["views"]
-                        users[uid]["twitter_replies"] += stats["replies"]
-                        users[uid]["total_score"] += (stats["likes"] * 2) + (stats["replies"] * 5)
-                    count += 1
-                    await asyncio.sleep(random.uniform(0.3, 0.6))
-            log(f"   --- Обработано {count} ссылок")
+                unique_links = list(set(links))[:10] # До 10 твитов от одного юзера
+                users[uid]["twitter_posts"] = len(unique_links)
+                
+                for link in unique_links:
+                    stats = None
+                    if link in tweet_cache:
+                        stats = tweet_cache[link]
+                    else:
+                        log(f"   [API] Запрос: {link}")
+                        stats = await get_twitter_stats(session, link)
+                        if stats:
+                            stats['tweet_url'] = link
+                            stats['updated_at'] = datetime.now(timezone.utc).isoformat()
+                            supabase.table("tweet_cache").upsert(stats).execute()
+                            tweet_cache[link] = stats
+                            await asyncio.sleep(random.uniform(0.5, 1.2))
 
-        # ЭТАП 3: СООБЩЕНИЯ (7 ДНЕЙ)
-        log(">>> ШАГ 3: Сбор сообщений в чатах (7 дней)")
+                    if stats:
+                        users[uid]["twitter_likes"] += stats.get("likes", 0)
+                        users[uid]["twitter_views"] += stats.get("views", 0)
+                        users[uid]["twitter_replies"] += stats.get("replies", 0)
+                        users[uid]["total_score"] += (stats.get("likes", 0) * 2) + (stats.get("replies", 0) * 5)
+
+        # ШАГ 3: СООБЩЕНИЯ В ЧАТАХ (7 ДНЕЙ)
+        log(">>> ШАГ 3: Сбор сообщений в чатах...")
         for tid in THREAD_IDS:
             msgs = await get_discord_messages(session, tid, 7)
             for m in msgs:
@@ -157,8 +173,8 @@ async def main():
                     }
                 users[uid]["discord_messages"] += 1
 
-        # ЭТАП 4: XP БОТ (7 ДНЕЙ)
-        log(">>> ШАГ 4: Анализ XP бота (7 дней)")
+        # ШАГ 4: АНАЛИЗ XP БОТА
+        log(">>> ШАГ 4: Синхронизация XP бота...")
         xp_msgs = await get_discord_messages(session, XP_BOT_THREAD_ID, 7)
         for xm in xp_msgs:
             if xm.get('mentions'):
@@ -170,12 +186,24 @@ async def main():
                         if val > users[t_uid]["total_score"]:
                             users[t_uid]["total_score"] = val
 
-    # Синхронизация
+    # === ФИНАЛЬНАЯ ПАКОВКА И ФИЛЬТР @not_linked ===
     now = datetime.now(timezone.utc).isoformat()
     payload = []
+    log(">>> Финализация: Проверка привязки Твиттера...")
+    
     for uid, info in users.items():
+        # Если постов 0 — ставим заглушку. Если есть — вытаскиваем ник.
+        if info["twitter_posts"] == 0:
+            info["twitter_handle"] = "@not_linked"
+        else:
+            first_link = user_tweets[uid][0]
+            handle_match = re.search(r'(?:x\.com|twitter\.com)/([a-zA-Z0-9_]+)/status', first_link, re.IGNORECASE)
+            info["twitter_handle"] = f"@{handle_match.group(1)}" if handle_match else "@not_linked"
+
+        # Базовые очки за сообщения
         if info["total_score"] == 0:
             info["total_score"] = info["discord_messages"] * 10
+            
         info["updated_at"] = now
         payload.append(info)
 
@@ -183,7 +211,7 @@ async def main():
         log(f">>> СИНХРОНИЗАЦИЯ: {len(payload)} пользователей")
         for i in range(0, len(payload), 50):
             supabase.table("leaderboard_stats").upsert(payload[i:i+50]).execute()
-        log("Все данные успешно обновлены!")
+        log("Все данные успешно обновлены! База чиста.")
 
 if __name__ == "__main__":
     asyncio.run(main())
