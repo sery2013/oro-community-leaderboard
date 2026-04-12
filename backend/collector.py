@@ -59,6 +59,7 @@ async def get_discord_messages(session, thread_id, days=2):
     last_id = None
     log(f"Сбор из {thread_id} ({days} дн.)")
     
+    total_fetched = 0
     while True:
         url = f"https://discord.com/api/v9/channels/{thread_id}/messages?limit=100"
         if last_id: url += f"&before={last_id}"
@@ -69,11 +70,19 @@ async def get_discord_messages(session, thread_id, days=2):
             if resp.status != 200: break
             batch = await resp.json()
             if not batch: break
+            
             for m in batch:
                 m_date = datetime.fromisoformat(m['timestamp'].replace('Z', '+00:00'))
-                if m_date < target_date: return messages
+                if m_date < target_date: 
+                    log(f"--- Завершено. Всего в канале {thread_id}: {total_fetched + len(messages)} сообщ.")
+                    return messages
                 messages.append(m)
+            
+            total_fetched += len(batch)
             last_id = batch[-1]['id']
+            # Тот самый лог «пачки по 100»
+            log(f"   [+] Загружено {total_fetched} сообщений из {thread_id}...")
+            
             await asyncio.sleep(0.4)
     return messages
 
@@ -113,7 +122,7 @@ async def main():
                     users[uid]["discord_messages"] += 1
 
         # Собираем XP Бота (14 дней)
-        log("Обработка XP...")
+        log("Обработка XP из сообщений...")
         xp_msgs = await get_discord_messages(session, XP_BOT_THREAD_ID, 14)
         for xm in xp_msgs:
             if xm.get('mentions'):
@@ -125,17 +134,21 @@ async def main():
                         if val > users[t_uid]["total_score"]:
                             users[t_uid]["total_score"] = val
 
-        # Сбор статистики Twitter (только лайки и просмотры)
+        # Сбор статистики Twitter
         if SOCIALDATA_API_KEY:
             log(f"Запрос статистики SocialData для {len(user_tweets)} активных авторов...")
+            processed_tweets = 0
             for uid, links in user_tweets.items():
                 for link in list(set(links))[:5]: 
                     stats = await get_twitter_stats(session, link)
                     if stats:
                         users[uid]["twitter_likes"] += stats["likes"]
                         users[uid]["twitter_views"] += stats["views"]
-                        # Добавляем к скору: 1 лайк = 2 XP
                         users[uid]["total_score"] += (stats["likes"] * 2)
+                    
+                    processed_tweets += 1
+                    if processed_tweets % 10 == 0:
+                        log(f"   статистика: проверено {processed_tweets} ссылок...")
                     await asyncio.sleep(0.2)
 
     # Финализация
@@ -148,8 +161,10 @@ async def main():
         payload.append(info)
 
     if payload:
+        log(f"Обновление базы данных (порции по 50 записей)...")
         for i in range(0, len(payload), 50):
             supabase.table("leaderboard_stats").upsert(payload[i:i+50]).execute()
+            log(f"   [v] Отправлено юзеров: {min(i+50, len(payload))}/{len(payload)}")
         log(f"Готово. Обработано {len(payload)} юзеров.")
 
 if __name__ == "__main__":
