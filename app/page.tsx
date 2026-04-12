@@ -267,7 +267,7 @@ export default function Leaderboard() {
               word-wrap: break-word;
               overflow-wrap: break-word;
               hyphens: manual;
-            ">DISCORD · ORO · CARD<br/>ACTIVITY</span>
+            ">DISCORD ORO CARD ACTIVITY</span>
           </div>
         </div>
       </div>
