@@ -44,7 +44,6 @@ async def get_twitter_stats(session, tweet_url):
         async with session.get(url, headers=headers) as resp:
             if resp.status == 200:
                 data = await resp.json()
-                # Извлекаем данные и ник автора для кеша
                 return {
                     "views": data.get("views_count", 0) or 0,
                     "likes": data.get("favorite_count", 0) or 0,
@@ -92,7 +91,7 @@ async def get_discord_messages(session, thread_id, days):
     return messages
 
 async def main():
-    log("Запуск коллектора (Версия: Full Stats + Fixed Cache)...")
+    log("Запуск коллектора (Версия: Full Stats Fix + Table Match)...")
     users = {}
     user_tweets = {} 
     
@@ -117,8 +116,10 @@ async def main():
                 users[uid] = {
                     "user_id": uid, "username": m['author']['username'],
                     "discord_messages": 0, "twitter_posts": 0, "total_score": 0,
-                    "likes": 0, "views": 0, "replies": 0, # Колонки для сайта
-                    "twitter_handle": exist.get("twitter_handle", "@not_linked")
+                    "likes": 0, "views": 0, "replies": 0,
+                    "twitter_handle": exist.get("twitter_handle", "@not_linked"),
+                    "discord_roles": exist.get("discord_roles", []),
+                    "discord_joined_at": exist.get("discord_joined_at")
                 }
             
             found = re.findall(twitter_pattern, m['content'], re.IGNORECASE)
@@ -144,20 +145,17 @@ async def main():
                         if stats:
                             stats['tweet_url'] = link
                             stats['updated_at'] = datetime.now(timezone.utc).isoformat()
-                            # Записываем в кеш с правильным author_handle
+                            # Запись в кеш с полем author_handle (фикс ошибки 42703)
                             supabase.table("tweet_cache").upsert(stats).execute()
                             tweet_cache[link] = stats
                             await asyncio.sleep(random.uniform(0.7, 1.5))
 
                     if stats:
-                        # Суммируем для основной таблицы
                         users[uid]["likes"] += stats.get("likes", 0)
                         users[uid]["views"] += stats.get("views", 0)
                         users[uid]["replies"] += stats.get("replies", 0)
-                        # Расчет очков
                         users[uid]["total_score"] += (stats.get("likes", 0) * 2) + (stats.get("replies", 0) * 5)
-                        # Обновляем ник из твита
-                        if stats.get("author_handle"):
+                        if stats.get("author_handle") and stats["author_handle"] != "unknown":
                             users[uid]["twitter_handle"] = f"@{stats['author_handle']}"
 
         # ШАГ 3: СООБЩЕНИЯ В ЧАТАХ (7 ДНЕЙ)
@@ -172,7 +170,9 @@ async def main():
                         "user_id": uid, "username": m['author']['username'],
                         "discord_messages": 0, "twitter_posts": 0, "total_score": 0,
                         "likes": 0, "views": 0, "replies": 0,
-                        "twitter_handle": "@not_linked"
+                        "twitter_handle": "@not_linked",
+                        "discord_roles": exist.get("discord_roles", []),
+                        "discord_joined_at": exist.get("discord_joined_at")
                     }
                 users[uid]["discord_messages"] += 1
 
@@ -194,22 +194,32 @@ async def main():
     payload = []
     
     for uid, info in users.items():
-        # Базовые очки за сообщения если нет твиттера и бота
         if info["total_score"] == 0:
             info["total_score"] = info["discord_messages"] * 10
             
-        info["updated_at"] = now
-        payload.append(info)
+        # Формируем данные СТРОГО под твою таблицу на скриншоте
+        payload.append({
+            "user_id": str(uid),
+            "username": info["username"],
+            "twitter_handle": info["twitter_handle"],
+            "total_score": int(info["total_score"]),
+            "twitter_likes": int(info.get("likes", 0)),
+            "twitter_views": int(info.get("views", 0)),
+            "twitter_replies": int(info.get("replies", 0)),
+            "discord_messages": int(info.get("discord_messages", 0)),
+            "discord_roles": info.get("discord_roles", []),
+            "discord_joined_at": info.get("discord_joined_at"),
+            "updated_at": now
+        })
 
     if payload:
         log(f">>> СИНХРОНИЗАЦИЯ: {len(payload)} пользователей")
-        # Пакетная загрузка по 50 записей
         for i in range(0, len(payload), 50):
             try:
                 supabase.table("leaderboard_stats").upsert(payload[i:i+50]).execute()
             except Exception as e:
                 log(f"Ошибка при сохранении пачки: {e}")
-        log("Все данные успешно обновлены! База чиста.")
+        log("Все данные успешно обновлены!")
 
 if __name__ == "__main__":
     asyncio.run(main())
