@@ -301,15 +301,15 @@ export default function Leaderboard() {
           ">Discord</div>
           <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; gap: 4px;">
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.08);">
-            <span style="color: rgba(255,255,255,0.85); font-size: 17px; font-weight: 500; white-space: nowrap;">Messages</span>
+            <span style="color: rgba(255,255,255,0.85); font-size: 21px; font-weight: 500; white-space: nowrap;">Messages</span>
             <span style="font-weight: 800; font-size: 21px; color: #fff; white-space: nowrap; flex-shrink: 0;">${selectedUser.discord_messages || 0}</span>
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.08);">
-            <span style="color: rgba(255,255,255,0.85); font-size: 17px; font-weight: 500; white-space: nowrap;">Active channels</span>
+            <span style="color: rgba(255,255,255,0.85); font-size: 21px; font-weight: 500; white-space: nowrap;">Active channels</span>
             <span style="font-weight: 800; font-size: 21px; color: #fff; white-space: nowrap; flex-shrink: 0;">${selectedUser.channels_count || 0}</span>
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 4px 0;">
-            <span style="color: rgba(255,255,255,0.85); font-size: 17px; font-weight: 500; white-space: nowrap;">Discord roles</span>
+            <span style="color: rgba(255,255,255,0.85); font-size: 21px; font-weight: 500; white-space: nowrap;">Discord roles</span>
             <span style="font-weight: 800; font-size: 21px; color: #fff; white-space: nowrap; flex-shrink: 0;">${selectedUser.discord_roles?.length || 0}</span>
           </div>
           </div>
@@ -338,15 +338,15 @@ export default function Leaderboard() {
           ">X (Twitter)</div>
           <div style="flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; gap: 4px;">
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.08);">
-            <span style="color: rgba(255,255,255,0.85); font-size: 17px; font-weight: 500; white-space: nowrap;">Posts</span>
+            <span style="color: rgba(255,255,255,0.85); font-size: 21px; font-weight: 500; white-space: nowrap;">Posts</span>
             <span style="font-weight: 800; font-size: 21px; color: #fff; white-space: nowrap; flex-shrink: 0;">${selectedUser.twitter_posts || 0}</span>
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.08);">
-            <span style="color: rgba(255,255,255,0.85); font-size: 17px; font-weight: 500; white-space: nowrap;">Engagement index</span>
+            <span style="color: rgba(255,255,255,0.85); font-size: 21px; font-weight: 500; white-space: nowrap;">Engagement index</span>
             <span style="font-weight: 800; font-size: 21px; color: #fff; white-space: nowrap; flex-shrink: 0;">${engagement}</span>
           </div>
           <div style="display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 4px 0;">
-            <span style="color: rgba(255,255,255,0.85); font-size: 17px; font-weight: 500; white-space: nowrap;">Impressions</span>
+            <span style="color: rgba(255,255,255,0.85); font-size: 21px; font-weight: 500; white-space: nowrap;">Impressions</span>
             <span style="font-weight: 800; font-size: 21px; color: #fff; white-space: nowrap; flex-shrink: 0;">${(selectedUser.twitter_views || 0).toLocaleString()}</span>
           </div>
           </div>
