@@ -17,7 +17,7 @@ CONTENT_THREAD_ID = "1389273374748049439"
 XP_BOT_THREAD_ID = "1351492950768619552"
 THREAD_IDS = [
     "1351487907042431027", "1351488160206426227", "1351488253332557867", 
-    "1351492950768619552", "1367864741548261416", "1371904712001065000", 
+    "1351492950768619552", "1367864741548261416", "1367864741548261416", 
     "1465733325149835295", "1371110511919497226", "1366338962813222993", 
     "1371904910324404325", "1371413462982594620", "1372149550793490505", 
     "1372149324192153620", "1372149873188536330", "1372242189240897596", 
@@ -33,7 +33,7 @@ HEADERS = {
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 async def get_twitter_stats(session, tweet_url):
-    """Получает статистику твита через SocialData"""
+    """Получает лайки, просмотры и комментарии через SocialData"""
     tweet_id_match = re.search(r"status/(\d+)", tweet_url)
     if not tweet_id_match: return None
     
@@ -47,7 +47,8 @@ async def get_twitter_stats(session, tweet_url):
                 data = await resp.json()
                 return {
                     "views": data.get("views_count", 0) or 0,
-                    "likes": data.get("favorite_count", 0) or 0
+                    "likes": data.get("favorite_count", 0) or 0,
+                    "replies": data.get("reply_count", 0) or 0
                 }
     except Exception as e:
         log(f"Ошибка SocialData для {tweet_id}: {e}")
@@ -65,7 +66,9 @@ async def get_discord_messages(session, thread_id, days=2):
         if last_id: url += f"&before={last_id}"
         async with session.get(url, headers=HEADERS) as resp:
             if resp.status == 429:
-                await asyncio.sleep((await resp.json()).get('retry_after', 1))
+                retry_after = (await resp.json()).get('retry_after', 1)
+                log(f"   [!] Rate limit. Ждем {retry_after} сек.")
+                await asyncio.sleep(retry_after)
                 continue
             if resp.status != 200: break
             batch = await resp.json()
@@ -80,10 +83,9 @@ async def get_discord_messages(session, thread_id, days=2):
             
             total_fetched += len(batch)
             last_id = batch[-1]['id']
-            # Лог прогресса пачек
             log(f"   [+] Пройдено {total_fetched} сообщений...")
             
-            # ВЕРНУЛ ДВОЙНУЮ ЗАДЕРЖКУ (РАНДОМ)
+            # Рандомная задержка (человеческий фактор)
             await asyncio.sleep(random.uniform(0.4, 0.8))
             
     return messages
@@ -109,7 +111,7 @@ async def main():
                     users[uid] = {
                         "user_id": uid, "username": m['author']['username'],
                         "discord_messages": 0, "twitter_posts": 0, "total_score": 0,
-                        "twitter_likes": 0, "twitter_views": 0,
+                        "twitter_likes": 0, "twitter_views": 0, "twitter_replies": 0,
                         "discord_roles": exist.get("discord_roles", []),
                         "discord_joined_at": exist.get("discord_joined_at")
                     }
@@ -139,31 +141,39 @@ async def main():
             log(f"Сбор статистики SocialData ({len(user_tweets)} авторов)...")
             processed_tweets = 0
             for uid, links in user_tweets.items():
-                for link in list(set(links))[:5]: 
+                for link in list(set(links))[:5]: # Лимит 5 постов на юзера
                     stats = await get_twitter_stats(session, link)
                     if stats:
                         users[uid]["twitter_likes"] += stats["likes"]
                         users[uid]["twitter_views"] += stats["views"]
-                        users[uid]["total_score"] += (stats["likes"] * 2)
+                        users[uid]["twitter_replies"] += stats["replies"]
+                        
+                        # Формула XP: лайк=2, коммент=5, просмотры=0
+                        users[uid]["total_score"] += (stats["likes"] * 2) + (stats["replies"] * 5)
                     
                     processed_tweets += 1
                     if processed_tweets % 10 == 0:
-                        log(f"   статистика: проверено {processed_tweets} ссылок...")
-                    await asyncio.sleep(random.uniform(0.2, 0.4))
+                        log(f"   Twitter: проверено {processed_tweets} ссылок...")
+                    await asyncio.sleep(random.uniform(0.3, 0.6))
 
     now = datetime.now(timezone.utc).isoformat()
     payload = []
     for uid, info in users.items():
+        # Заглушка если нет XP от бота
         if info["total_score"] == 0:
             info["total_score"] = info["discord_messages"] * 10
         info["updated_at"] = now
         payload.append(info)
 
     if payload:
-        log(f"Синхронизация с базой (пачки по 50)...")
+        log(f"Синхронизация с Supabase (пачки по 50)...")
         for i in range(0, len(payload), 50):
-            supabase.table("leaderboard_stats").upsert(payload[i:i+50]).execute()
-            log(f"   [v] Прогресс: {min(i+50, len(payload))}/{len(payload)} юзеров")
+            batch = payload[i:i+50]
+            try:
+                supabase.table("leaderboard_stats").upsert(batch).execute()
+                log(f"   [v] Прогресс: {min(i+50, len(payload))}/{len(payload)} юзеров")
+            except Exception as e:
+                log(f"   [!] Ошибка записи пачки: {e}")
         log("Готово!")
 
 if __name__ == "__main__":
