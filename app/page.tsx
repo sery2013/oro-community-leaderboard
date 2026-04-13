@@ -92,7 +92,7 @@ export default function Leaderboard() {
         .select('*')
         .order('total_score', { ascending: false });
       
-      const validData = (data || []).filter(u => u.discord_joined_at || (u.discord_roles && u.discord_roles.length > 0));
+      const validData = (data || []).filter(u => (u.discord_messages > 0) || (u.total_score > 0));
       setUsers(validData);
 
       if (data && data.length > 0 && data[0].updated_at) {
