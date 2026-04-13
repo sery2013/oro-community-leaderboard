@@ -92,7 +92,7 @@ export default function Leaderboard() {
         .select('*')
         .order('total_score', { ascending: false });
       
-      const totalXP = validData.reduce((acc, u) => acc + (u.total_score || 0), 0);
+      const totalXP = validData.reduce((sum, u) => sum + (u.total_score || 0), 0);
       setUsers(validData);
 
       if (data && data.length > 0 && data[0].updated_at) {
