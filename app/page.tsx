@@ -92,7 +92,7 @@ export default function Leaderboard() {
         .select('*')
         .order('total_score', { ascending: false });
       
-      const totalXP = (validData as any[]).reduce((sum: number, u: any) => sum + (Number(u.total_score) || 0), 0);
+      const validData = (data || []).filter(u => (u.discord_messages > 0) || (Number(u.total_score) > 0));
       setUsers(validData);
 
       if (data && data.length > 0 && data[0].updated_at) {
