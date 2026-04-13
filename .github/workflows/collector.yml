@@ -24,7 +24,7 @@ jobs:
       - name: Run collector
         env:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
-          SOCIALDATA_KEY: ${{ secrets.SOCIALDATA_KEY }}
+          SOCIALDATA_API_KEY: ${{ secrets.SOCIALDATA_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
         run: python backend/collector.py
