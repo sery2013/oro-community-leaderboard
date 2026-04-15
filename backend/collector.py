@@ -31,38 +31,86 @@ HEADERS = {
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-async def get_twitter_stats(session, tweet_url):
-    """Запрос статистики из API SocialData"""
-    log(f"🔍 Запрос API для: {tweet_url}")
+# 🔧 Глобальная статистика для логирования
+api_stats = {
+    "success": 0,
+    "403_errors": 0,
+    "404_errors": 0,
+    "cached": 0,
+    "total": 0
+}
+
+async def get_twitter_stats(session, tweet_url, max_retries=2):
+    """Запрос статистики из API SocialData с обработкой ошибок и ретраями"""
     
-    tweet_id_match = re.search(r"status/(\d+)", tweet_url)
+    # 🔧 Нормализация URL — убираем /i/ если есть
+    clean_url = tweet_url.replace('/x.com/i/status/', '/x.com/status/') \
+                         .replace('twitter.com/i/status/', 'twitter.com/status/')
+    
+    tweet_id_match = re.search(r"status/(\d+)", clean_url)
     if not tweet_id_match or not SOCIALDATA_API_KEY: 
-        log(f"⚠️ Пропущено: нет tweet_id или API ключа")
+        log(f"⚠️ Пропущено: нет tweet_id или API ключа для {clean_url}")
         return None
     
     tweet_id = tweet_id_match.group(1)
     url = f"https://api.socialdata.tools/twitter/tweets/{tweet_id}"
     headers = {"Authorization": f"Bearer {SOCIALDATA_API_KEY}", "Accept": "application/json"}
     
-    try:
-        async with session.get(url, headers=headers, timeout=15) as resp:
-            if resp.status == 200:
-                data = await resp.json()
-                result = {
-                    "views": data.get("views_count", 0) or 0,
-                    "likes": data.get("favorite_count", 0) or 0,
-                    "replies": data.get("reply_count", 0) or 0,
-                    "author_handle": data.get("user", {}).get("screen_name", "unknown")
-                }
-                log(f"✅ API ответ: {result['likes']} likes, {result['views']} views")
-                return result
+    for attempt in range(max_retries):
+        try:
+            async with session.get(url, headers=headers, timeout=15) as resp:
+                if resp.status == 200:
+                    data = await resp.json()
+                    result = {
+                        "views": data.get("views_count", 0) or 0,
+                        "likes": data.get("favorite_count", 0) or 0,
+                        "replies": data.get("reply_count", 0) or 0,
+                        "author_handle": data.get("user", {}).get("screen_name", "unknown")
+                    }
+                    api_stats["success"] += 1
+                    log(f"✅ API ответ: {result['likes']} likes, {result['views']} views")
+                    return result
+                    
+                elif resp.status == 403:
+                    api_stats["403_errors"] += 1
+                    if attempt < max_retries - 1:
+                        wait_time = 10 * (attempt + 1)  # 10s, 20s
+                        log(f"⚠️ 403 Forbidden (попытка {attempt+1}/{max_retries}). Жду {wait_time}s...")
+                        await asyncio.sleep(wait_time)
+                        continue
+                    else:
+                        log(f"❌ 403 после {max_retries} попыток для {clean_url}. Пропускаем.")
+                        return None
+                        
+                elif resp.status == 404:
+                    api_stats["404_errors"] += 1
+                    log(f"⚠️ 404 Not Found для {clean_url} (удалён или приватный)")
+                    return None
+                    
+                elif resp.status == 429:  # Rate limit
+                    retry_after = int(resp.headers.get('Retry-After', 30))
+                    log(f"⏳ Rate limit (429). Жду {retry_after}s...")
+                    await asyncio.sleep(retry_after)
+                    continue
+                    
+                else:
+                    log(f"⚠️ API ответ {resp.status} для {clean_url}")
+                    return None
+                    
+        except asyncio.TimeoutError:
+            log(f"⏱️ Timeout для {clean_url}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2)
             else:
-                log(f"⚠️ API ответ {resp.status} для {tweet_url}")
                 return None
-    except Exception as e:
-        log(f"❌ Ошибка запроса {tweet_url}: {e}")
-        await asyncio.sleep(1)
-        return None
+        except Exception as e:
+            log(f"❌ Ошибка запроса {clean_url}: {e}")
+            if attempt < max_retries - 1:
+                await asyncio.sleep(2)
+            else:
+                return None
+    
+    return None
 
 async def get_discord_messages(session, thread_id, days):
     target_date = datetime.now(timezone.utc) - timedelta(days=days)
@@ -95,6 +143,8 @@ async def get_discord_messages(session, thread_id, days):
     return messages
 
 async def main():
+    global api_stats
+    
     log("Запуск коллектора (Версия: Full User-ID Sync)...")
     
     # 🔧 Тест API ключа
@@ -152,13 +202,15 @@ async def main():
 
         # 🔧 ШАГ 2: Статистика твитов (ИСПРАВЛЕННЫЙ)
         if user_tweets:
-            log(f">>> ШАГ 2: Статистика твитов ({len(user_tweets)} авторов, {sum(len(v) for v in user_tweets.values())} ссылок)...")
+            total_links = sum(len(v) for v in user_tweets.values())
+            log(f">>> ШАГ 2: Статистика твитов ({len(user_tweets)} авторов, {total_links} ссылок)...")
             
             for uid, links in user_tweets.items():
                 unique_links = list(set(links))[:10] 
                 users[uid]["twitter_posts"] = len(unique_links)
                 
                 for link in unique_links:
+                    api_stats["total"] += 1
                     stats = tweet_cache.get(link)
                     
                     # Если данных нет — обновляем через API
@@ -180,6 +232,8 @@ async def main():
                             except Exception as e:
                                 log(f"⚠️ Не удалось сохранить в кеш: {e}")
                         await asyncio.sleep(0.2)  # Немного дольше между запросами
+                    else:
+                        api_stats["cached"] += 1
 
                     # ✅ Начисляем баллы ВСЕГДА, если есть статистика
                     if stats:
@@ -224,6 +278,14 @@ async def main():
                         if val > users[t_uid]["total_score"]: 
                             users[t_uid]["total_score"] = val
                             log(f"⭐ Обновлён XP для {t_uid}: {val}")
+
+    # 📊 Логируем статистику API
+    log(f"\n📊 СТАТИСТИКА TWITTER API:")
+    log(f"   ✅ Успешно: {api_stats['success']}")
+    log(f"   📦 Из кеша: {api_stats['cached']}")
+    log(f"   ⚠️ 403 ошибки: {api_stats['403_errors']}")
+    log(f"   ❌ 404 ошибки: {api_stats['404_errors']}")
+    log(f"   🔢 Всего запросов: {api_stats['total']}")
 
     # СОХРАНЕНИЕ
     now = datetime.now(timezone.utc).isoformat()
