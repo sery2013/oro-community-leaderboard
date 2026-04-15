@@ -215,14 +215,15 @@ async def main():
                     
                     # Если данных нет — обновляем через API
                     if not stats:
-                        api_stats = await get_twitter_stats(session, link)
-                        if api_stats:
+                        # ✅ ИСПРАВЛЕНО: используем api_result вместо api_stats
+                        api_result = await get_twitter_stats(session, link)
+                        if api_result:
                             stats = {
                                 'tweet_url': link,
-                                'views': api_stats.get('views', 0),
-                                'likes': api_stats.get('likes', 0), 
-                                'replies': api_stats.get('replies', 0),
-                                'author_handle': api_stats.get('author_handle', 'unknown'),
+                                'views': api_result.get('views', 0),
+                                'likes': api_result.get('likes', 0), 
+                                'replies': api_result.get('replies', 0),
+                                'author_handle': api_result.get('author_handle', 'unknown'),
                                 'updated_at': datetime.now(timezone.utc).isoformat()
                             }
                             try:
