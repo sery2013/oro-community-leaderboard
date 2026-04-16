@@ -41,7 +41,11 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 def get_discord_member_info(user_id, token):
     """Получает дату вступления и роли (как в старом коде)"""
     url = f"https://discord.com/api/v10/guilds/{GUILD_ID}/members/{user_id}"
-    headers = {"Authorization": token}
+    
+    # ✅ ИСПРАВЛЕНО: используем HEADERS вместо {"Authorization": token}
+    # Это обеспечит одинаковый User-Agent во всех запросах к Discord
+    headers = HEADERS
+    
     try:
         r = requests.get(url, headers=headers, timeout=5)
         if r.status_code == 200:
@@ -129,11 +133,13 @@ async def get_discord_messages(session, thread_id, days, is_content_thread=False
                 
                 last_id = batch[-1]['id']
                 
-                # 🎲 РАНДОМНАЯ ЗАДЕРЖКА (как ты просил)
+                # 🎲 РАНДОМНАЯ ЗАДЕРЖКА
                 if is_content_thread:
-                    await asyncio.sleep(random.uniform(0.5, 1.0))  # Медленнее для контента
+                    # ✅ ИЗМЕНЕНО: 0.1-0.2 сек для быстрого сбора контента (как ты просил)
+                    await asyncio.sleep(random.uniform(0.1, 0.2))
                 else:
-                    await asyncio.sleep(random.uniform(0.4, 0.7))  # Быстрее для чатов
+                    # 0.4-0.7 сек для обычных чатов (безопасно)
+                    await asyncio.sleep(random.uniform(0.4, 0.7))
                     
         except Exception as e:
             log(f"❌ Ошибка {thread_id}: {e}")
@@ -214,7 +220,7 @@ async def main():
                 if processed % 10 == 0:
                     log(f"⏳ Прогресс: {processed}/{len(unique_tweets)}")
                 
-                # Задержка между запросами
+                # Задержка между запросами к Twitter API
                 await asyncio.sleep(0.15)
         
         # ШАГ 3: Подсчет сообщений в чатах (7 дней)
