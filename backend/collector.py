@@ -207,7 +207,7 @@ async def main():
             log(f">>> ШАГ 2: Статистика твитов ({len(user_tweets)} авторов, {total_links} ссылок)...")
             
             for uid, links in user_tweets.items():
-                unique_links = list(set(links))[:10] 
+                unique_links = list(set(links))[:20] 
                 users[uid]["twitter_posts"] = len(unique_links)
                 
                 for link in unique_links:
