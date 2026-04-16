@@ -28,7 +28,7 @@ DAYS_BACK_CONTENT = 30
 DAYS_BACK_CHAT = 7
 DAYS_BACK_XP = 7
 
-# ✅ ПОЛНЫЙ НАБОР ЗАГОЛОВКОВ
+# ✅ ПОЛНЫЙ НАБОР ЗАГОЛОВКОВ (маскировка под Chrome)
 HEADERS = {
     'Authorization': DISCORD_TOKEN,
     'Content-Type': 'application/json',
@@ -80,7 +80,7 @@ async def fetch_tweet_stats(session, tweet_url, api_key):
                         "twitter_handle": data.get('user', {}).get('screen_name')
                     }
                 elif resp.status == 403:
-                    return None  #  Сразу пропускаем
+                    return None  # Сразу пропускаем
                 elif resp.status == 404:
                     return None
                 elif resp.status == 429:
@@ -128,7 +128,7 @@ async def get_discord_messages(session, thread_id, days, is_content_thread=False
     return messages
 
 async def main():
-    log("🚀 Запуск (Финальная версия + Умный XP парсер)...")
+    log("🚀 Запуск (Финальная версия + Точный XP парсер)...")
     
     old_res = supabase.table("leaderboard_stats").select("*").execute()
     old_data = {item['user_id']: item for item in old_res.data} if old_res.data else {}
@@ -219,58 +219,49 @@ async def main():
                         "discord_roles": exist.get("discord_roles", []), "total_score": 0, "channels": {tid}
                     }
 
-        # 🔥 ШАГ 4: УМНЫЙ ПАРСИНГ XP (Ищет ники в тексте сообщения)
+        # 🔥 ШАГ 4: УМНЫЙ ПАРСИНГ XP (Посообщенный поиск + точные границы ника)
         log(">>> ШАГ 4: Сбор XP (Smart Scan)...")
         xp_msgs = await get_discord_messages(session, XP_BOT_THREAD_ID, DAYS_BACK_XP, is_content_thread=False)
         xp_found_count = 0
         
-        # Собираем весь текст из сообщений бота
-        bot_texts = []
         for xm in xp_msgs:
             if not xm['author'].get('bot', False): continue
             
-            text_part = xm.get('content', '')
-            embeds = xm.get('embeds', [])
-            if embeds:
-                for emb in embeds:
-                    if emb.get('description'): text_part += "\n" + emb['description']
-                    if emb.get('fields'):
-                        for f in emb['fields']:
-                            if f.get('value'): text_part += "\n" + f['value']
+            # Собираем текст конкретно этого сообщения
+            current_msg_text = xm.get('content', '')
+            for emb in xm.get('embeds', []):
+                if emb.get('description'): current_msg_text += "\n" + emb['description']
+                if emb.get('fields'):
+                    for f in emb['fields']:
+                        if f.get('value'): current_msg_text += "\n" + f['value']
             
-            if text_part:
-                bot_texts.append(text_part)
-        
-        # Теперь ищем каждого нашего пользователя в этом тексте
-        full_text = " ".join(bot_texts).upper()
-        
-        for uid, info in users.items():
-            username = info.get('username', '').upper()
-            if not username or len(username) < 3: continue
-            
-            # Если ник есть в тексте бота
-            if username in full_text:
-                # Пытаемся найти число XP рядом с ником
-                # Паттерн: НИК ... ЧИСЛО XP
-                # Ищем число, которое стоит после ника и перед XP
-                pattern = re.escape(username) + r'.*?(\d[\d\s,]*[KM]?)\s*XP'
-                match = re.search(pattern, full_text, re.IGNORECASE | re.DOTALL)
+            msg_upper = current_msg_text.upper()
+
+            # Проверяем наших юзеров в этом конкретном сообщении
+            for uid, info in users.items():
+                username = info.get('username', '').upper()
+                if not username or len(username) < 3: continue
                 
-                if match:
-                    xp_str = match.group(1).replace(' ', '').replace(',', '').upper()
-                    try:
-                        if 'K' in xp_str: val = int(float(xp_str.replace('K', '')) * 1000)
-                        elif 'M' in xp_str: val = int(float(xp_str.replace('M', '')) * 1000000)
-                        else: val = int(xp_str)
-                        
-                        if val > info["total_score"]:
-                            info["total_score"] = val
-                            xp_found_count += 1
-                    except: pass
+                if username in msg_upper:
+                    # \b гарантирует точное совпадение ника (чтобы 'alex' не матчил 'alexander')
+                    pattern = r'\b' + re.escape(username) + r'\b.*?(\d[\d\s,]*[KM]?)\s*XP'
+                    match = re.search(pattern, msg_upper, re.IGNORECASE | re.DOTALL)
+                    
+                    if match:
+                        xp_str = match.group(1).replace(' ', '').replace(',', '').upper()
+                        try:
+                            if 'K' in xp_str: val = int(float(xp_str.replace('K', '')) * 1000)
+                            elif 'M' in xp_str: val = int(float(xp_str.replace('M', '')) * 1000000)
+                            else: val = int(xp_str)
+                            
+                            if val > info["total_score"]:
+                                info["total_score"] = val
+                                xp_found_count += 1
+                        except: pass
 
         log(f"✅ Обновлен XP для {xp_found_count} пользователей")
 
-        # Обогащение
+        # Обогащение (Роли)
         log("🛡️ Роли...")
         for i, uid in enumerate(users):
             joined, roles = get_discord_member_info(uid, DISCORD_TOKEN)
