@@ -88,9 +88,9 @@ export default function Leaderboard() {
     async function fetchData() {
       if (!supabase) return;
       const { data } = await supabase
-        .from('leaderboard_stats')
-        .select('*')
-        .order('total_score', { ascending: false });
+  .from('leaderboard_stats')
+  .select('user_id,username,avatar_url,discord_joined_at,discord_messages,twitter_posts,twitter_likes,twitter_views,twitter_replies,total_score,channels_count,discord_roles,twitter_handle,prev_total_score,prev_discord_messages,updated_at')
+  .order('total_score', { ascending: false });
       
       // ✅ ИСПРАВЛЕНО: Показываем всех, у кого есть хоть какая-то активность (включая Twitter)
       const validData = (data || []).filter(u => 
@@ -683,7 +683,7 @@ export default function Leaderboard() {
                               <line x1="8" y1="2" x2="8" y2="6"></line>
                               <line x1="3" y1="10" x2="21" y2="10"></line>
                             </svg>
-                            <span className="join-date">{formatDate(user.discord_joined_at)}</span>
+                            <span className="join-date">{user.discord_joined_at ? formatDate(user.discord_joined_at) : 'Member'}</span>
                           </div>
                           <a
                             href={user.twitter_handle && user.twitter_handle !== '@not_linked' ? `https://x.com/${user.twitter_handle.replace('@', '')}` : '#'}
