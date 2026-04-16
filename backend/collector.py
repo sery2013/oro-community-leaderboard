@@ -117,9 +117,14 @@ async def get_discord_messages(session, thread_id, days, is_content_thread=False
                     await asyncio.sleep(wait)
                     continue
                 
+                # ✅ ИСПРАВЛЕНО: Если нет доступа к каналу (403), не ломаем скрипт, а просто пропускаем его
+                if resp.status == 403:
+                    log(f"⛔ НЕТ ДОСТУПА к каналу {thread_id}. Пропускаем...")
+                    return messages  # Возвращаем то, что успели собрать (или пустоту)
+                
                 if resp.status != 200:
-                    log(f"⚠️ Discord API ответ {resp.status} для канала {thread_id}")
-                    break  # Выходим из цикла, если канал недоступен
+                    log(f"⚠️ Discord API ответ {resp.status} для {thread_id}")
+                    break
                 
                 batch = await resp.json()
                 if not batch:
@@ -135,10 +140,8 @@ async def get_discord_messages(session, thread_id, days, is_content_thread=False
                 
                 # 🎲 РАНДОМНАЯ ЗАДЕРЖКА
                 if is_content_thread:
-                    # ✅ ИЗМЕНЕНО: 0.1-0.2 сек для быстрого сбора контента (как ты просил)
                     await asyncio.sleep(random.uniform(0.1, 0.2))
                 else:
-                    # 0.4-0.7 сек для обычных чатов (безопасно)
                     await asyncio.sleep(random.uniform(0.4, 0.7))
                     
         except Exception as e:
@@ -217,11 +220,11 @@ async def main():
                                 users[uid]["twitter_handle"] = f"@{stats['twitter_handle']}"
                 
                 processed += 1
-                if processed % 5 == 0:  # Логируем чаще, так как медленнее
+                if processed % 5 == 0:
                     log(f"⏳ Прогресс: {processed}/{len(unique_tweets)}")
                 
                 # 🔧 МЕДЛЕННАЯ ЗАДЕРЖКА (1-2 секунды)
-                # Это снизит нагрузку и риск 403 бана IP
+                # Это критически важно, чтобы SocialData не давал 403 ошибки
                 await asyncio.sleep(random.uniform(1.0, 2.0)) 
         
         # ШАГ 3: Подсчет сообщений в чатах (7 дней)
