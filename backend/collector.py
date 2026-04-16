@@ -12,9 +12,11 @@ SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 DISCORD_TOKEN = os.getenv("DISCORD_TOKEN")
 SOCIALDATA_API_KEY = os.getenv("SOCIALDATA_API_KEY")
 
+GUILD_ID = "1389273374748049439"  # Твой сервер
 CONTENT_THREAD_ID = "1389273374748049439"
 XP_BOT_THREAD_ID = "1351492950768619552"
 
+# Все чаты для сбора сообщений
 THREAD_IDS = [
     "1351487907042431027", "1351488160206426227", "1351488253332557867", 
     "1367864741548261416", "1465733325149835295", "1371110511919497226", 
@@ -23,6 +25,11 @@ THREAD_IDS = [
     "1372242189240897596", "1351488556924932128"
 ]
 
+DAYS_BACK_CONTENT = 30  # Сколько дней собирать ссылки на твиты
+DAYS_BACK_CHAT = 7      # Сколько дней считать сообщения
+DAYS_BACK_XP = 7        # Сколько дней собирать XP
+
+# ✅ ПОЛНЫЙ User-Agent (как в старом коде)
 HEADERS = {
     'Authorization': DISCORD_TOKEN,
     'Content-Type': 'application/json',
@@ -31,229 +38,282 @@ HEADERS = {
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
-# Глобальная статистика
-api_stats = {"success": 0, "403_errors": 0, "404_errors": 0, "cached": 0, "total": 0}
+def get_discord_member_info(user_id, token):
+    """Получает дату вступления и роли (как в старом коде)"""
+    url = f"https://discord.com/api/v10/guilds/{GUILD_ID}/members/{user_id}"
+    headers = {"Authorization": token}
+    try:
+        r = requests.get(url, headers=headers, timeout=5)
+        if r.status_code == 200:
+            data = r.json()
+            return data.get('joined_at'), data.get('roles', [])
+    except:
+        pass
+    return None, []
 
-async def get_twitter_stats(session, tweet_url, max_retries=1):
-    """Умный запрос: мгновенный пропуск битых ссылок + ожидание при лимитах"""
-    clean_url = tweet_url.replace('/x.com/i/status/', '/x.com/status/').replace('twitter.com/i/status/', 'twitter.com/status/')
-    tweet_id_match = re.search(r"status/(\d+)", clean_url)
-    if not tweet_id_match or not SOCIALDATA_API_KEY: 
+async def fetch_tweet_stats(session, tweet_url, api_key):
+    """Запрос статистики твита с умной обработкой ошибок"""
+    id_match = re.search(r"status/(\d+)", tweet_url)
+    if not id_match or not api_key:
         return None
     
-    tweet_id = tweet_id_match.group(1)
-    url = f"https://api.socialdata.tools/twitter/tweets/{tweet_id}"
-    headers = {"Authorization": f"Bearer {SOCIALDATA_API_KEY}", "Accept": "application/json"}
+    tweet_id = id_match.group(1)
+    api_url = f"https://api.socialdata.tools/twitter/tweets/{tweet_id}"
+    headers = {"Authorization": f"Bearer {api_key}"}
     
-    for attempt in range(max_retries + 1):
-        try:
-            async with session.get(url, headers=headers, timeout=10) as resp:
-                if resp.status == 200:
-                    data = await resp.json()
-                    api_stats["success"] += 1
-                    return {
-                        "views": data.get("views_count", 0) or 0,
-                        "likes": data.get("favorite_count", 0) or 0,
-                        "replies": data.get("reply_count", 0) or 0,
-                        "author_handle": data.get("user", {}).get("screen_name", "unknown")
-                    }
-                elif resp.status == 403:
-                    try:
-                        err_msg = (await resp.json()).get('message', '').lower()
-                    except: 
-                        err_msg = ""
-                    
-                    # Если твит удален или аккаунт в бане — не ждем
-                    if any(x in err_msg for x in ["not found", "forbidden", "suspended", "protected"]):
-                        api_stats["403_errors"] += 1
-                        return None
-                    
-                    # Если это лимит ключа — ждем один раз
-                    api_stats["403_errors"] += 1
-                    if attempt < max_retries:
-                        log(f"⏳ 403 (лимит ключа?), жду 10s...")
-                        await asyncio.sleep(10)
-                        continue
-                    return None
-                elif resp.status == 404:
-                    api_stats["404_errors"] += 1
-                    return None
-                elif resp.status == 429:
-                    wait = int(resp.headers.get('Retry-After', 5))
-                    log(f"⏳ Rate limit, жду {wait}s...")
-                    await asyncio.sleep(wait)
-                    continue
-        except Exception as e:
-            log(f"❌ Ошибка запроса {tweet_id}: {e}")
-            return None
+    try:
+        async with session.get(api_url, headers=headers, timeout=10) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                twitter_handle = None
+                if 'user' in data and 'screen_name' in data['user']:
+                    twitter_handle = data['user']['screen_name']
+                
+                return {
+                    "likes": data.get('favorite_count', 0) or 0,
+                    "views": data.get('views_count', 0) or 0,
+                    "replies": data.get('reply_count', 0) or 0,
+                    "twitter_handle": twitter_handle
+                }
+            elif resp.status == 403:
+                log(f"⚠️ 403 (нет доступа): {tweet_id}")
+                return None
+            elif resp.status == 404:
+                log(f"⚠️ 404 (удалён): {tweet_id}")
+                return None
+            elif resp.status == 429:
+                wait = int(resp.headers.get('Retry-After', 10))
+                log(f"⏳ Rate limit, жду {wait}s...")
+                await asyncio.sleep(wait)
+                return await fetch_tweet_stats(session, tweet_url, api_key)  # Повтор
+    except Exception as e:
+        log(f"❌ Ошибка запроса {tweet_id}: {e}")
+        return None
+    
     return None
 
-async def get_discord_messages(session, thread_id, days):
+async def get_discord_messages(session, thread_id, days, is_content_thread=False):
+    """Сбор сообщений с рандомной задержкой"""
     target_date = datetime.now(timezone.utc) - timedelta(days=days)
     messages = []
     last_id = None
-    log(f"Сканирование {thread_id}...")
+    
+    log(f"📡 Сканирование {thread_id}...")
     
     while True:
-        url = f"https://discord.com/api/v9/channels/{thread_id}/messages?limit=100"
-        if last_id: url += f"&before={last_id}"
+        url = f"https://discord.com/api/v10/channels/{thread_id}/messages?limit=100"
+        if last_id:
+            url += f"&before={last_id}"
         
-        async with session.get(url, headers=HEADERS) as resp:
-            if resp.status == 429:
-                wait = (await resp.json()).get('retry_after', 5)
-                log(f"⏳ Rate limit Discord, жду {wait}s...")
-                await asyncio.sleep(wait); continue
-            if resp.status != 200: 
-                log(f"⚠️ Discord API ответ {resp.status}")
-                break
-            batch = await resp.json()
-            if not batch: break
-            
-            for m in batch:
-                m_date = datetime.fromisoformat(m['timestamp'].replace('Z', '+00:00'))
-                if m_date < target_date: return messages
-                messages.append(m)
-            
-            last_id = batch[-1]['id']
-            # 🔧 РАНДОМНАЯ ЗАДЕРЖКА 0.4–0.7 сек (как ты просил)
-            await asyncio.sleep(random.uniform(0.4, 0.7))
+        try:
+            async with session.get(url, headers=HEADERS) as resp:
+                if resp.status == 429:
+                    wait = (await resp.json()).get('retry_after', 5)
+                    log(f"⏳ Discord rate limit, жду {wait}s...")
+                    await asyncio.sleep(wait)
+                    continue
+                
+                if resp.status != 200:
+                    log(f"⚠️ Discord API ответ {resp.status}")
+                    break
+                
+                batch = await resp.json()
+                if not batch:
+                    break
+                
+                for m in batch:
+                    m_date = datetime.fromisoformat(m['timestamp'].replace('Z', '+00:00'))
+                    if m_date < target_date:
+                        return messages
+                    messages.append(m)
+                
+                last_id = batch[-1]['id']
+                
+                # 🎲 РАНДОМНАЯ ЗАДЕРЖКА (как ты просил)
+                if is_content_thread:
+                    await asyncio.sleep(random.uniform(0.5, 1.0))  # Медленнее для контента
+                else:
+                    await asyncio.sleep(random.uniform(0.4, 0.7))  # Быстрее для чатов
+                    
+        except Exception as e:
+            log(f"❌ Ошибка {thread_id}: {e}")
+            break
+    
     return messages
 
 async def main():
-    global api_stats
-    log("Запуск коллектора (Версия: Оптимизированный + Фиксы)...")
+    log("🚀 Запуск коллектора (Гибридная версия: Старый + Новый)...")
     
-    # Загрузка кеша и старых данных
+    # 🔍 Загрузка старых данных
     old_res = supabase.table("leaderboard_stats").select("*").execute()
     old_data = {item['user_id']: item for item in old_res.data} if old_res.data else {}
     
-    cache_res = supabase.table("tweet_cache").select("*").execute()
-    tweet_cache = {item['tweet_url']: item for item in cache_res.data} if cache_res.data else {}
-    log(f"📦 Загружено {len(tweet_cache)} записей из tweet_cache")
-
+    users = {}
+    tweet_list = []
+    twitter_pattern = r'https?://(?:www\.|mobile\.)?(?:x\.com|twitter\.com)/[a-zA-Z0-9_]+/status/\d+'
+    
     async with aiohttp.ClientSession() as session:
-        # ШАГ 1: Сбор ссылок
+        # ШАГ 1: Сбор ссылок из Discord (30 дней)
         log(">>> ШАГ 1: Сбор ссылок из Discord...")
-        content_msgs = await get_discord_messages(session, CONTENT_THREAD_ID, 30)
-        twitter_pattern = r'https?://(?:www\.|mobile\.)?(?:x\.com|twitter\.com)/[a-zA-Z0-9_]+/status/\d+'
-        
-        users = {}
-        user_tweets = {}
+        content_msgs = await get_discord_messages(session, CONTENT_THREAD_ID, DAYS_BACK_CONTENT, is_content_thread=True)
         
         for m in content_msgs:
             uid = str(m['author']['id'])
             if uid not in users:
                 exist = old_data.get(uid, {})
                 users[uid] = {
-                    "user_id": uid, "username": m['author']['username'],
-                    "discord_messages": 0, "twitter_posts": 0, "total_score": 0,
-                    "likes": 0, "views": 0, "replies": 0,
+                    "user_id": uid,
+                    "username": m['author']['username'],
+                    "avatar_url": m['author'].get('avatar'),
+                    "discord_messages": 0,
+                    "twitter_posts": 0,
+                    "twitter_likes": 0,
+                    "twitter_views": 0,
+                    "twitter_replies": 0,
                     "twitter_handle": exist.get("twitter_handle", "@not_linked"),
+                    "discord_joined_at": exist.get("discord_joined_at"),
                     "discord_roles": exist.get("discord_roles", []),
-                    "discord_joined_at": exist.get("discord_joined_at")
+                    "total_score": 0,
+                    "channels": set()
                 }
             
-            found = re.findall(twitter_pattern, m['content'], re.IGNORECASE)
-            if found:
-                if uid not in user_tweets: user_tweets[uid] = []
-                user_tweets[uid].extend([l.split('?')[0].lower() for l in found])
-
-        # ШАГ 2: Статистика твитов (Лимит 20 твитов на юзера)
-        if user_tweets:
-            log(f">>> ШАГ 2: Обработка твитов ({len(user_tweets)} авторов)...")
+            # Сбор ссылок на твиты
+            links = re.findall(twitter_pattern, m['content'], re.IGNORECASE)
+            for l in links:
+                clean_link = l.split('?')[0].lower()
+                tweet_list.append((uid, clean_link))
+        
+        log(f"✅ Найдено {len(tweet_list)} ссылок на твиты")
+        
+        # ШАГ 2: Запрос Twitter API (БЕЗ КЕША!)
+        if tweet_list and SOCIALDATA_API_KEY:
+            log(">>> ШАГ 2: Запрос Twitter API...")
             
-            for uid, links in user_tweets.items():
-                unique_links = list(set(links))[:20]  # ✅ 20 твитов вместо 10
-                users[uid]["twitter_posts"] = len(unique_links)
+            # Убираем дубликаты
+            unique_tweets = {}
+            for uid, link in tweet_list:
+                if link not in unique_tweets:
+                    unique_tweets[link] = []
+                unique_tweets[link].append(uid)
+            
+            processed = 0
+            for link, uids in unique_tweets.items():
+                stats = await fetch_tweet_stats(session, link, SOCIALDATA_API_KEY)
                 
-                for link in unique_links:
-                    api_stats["total"] += 1
-                    stats = tweet_cache.get(link)
-                    
-                    if not stats:
-                        api_result = await get_twitter_stats(session, link)
-                        if api_result:
-                            stats = {
-                                'tweet_url': link, 
-                                'views': api_result['views'],
-                                'likes': api_result['likes'], 
-                                'replies': api_result['replies'],
-                                'author_handle': api_result['author_handle'],
-                                'updated_at': datetime.now(timezone.utc).isoformat()
-                            }
-                            try:
-                                supabase.table("tweet_cache").upsert(stats).execute()
-                                tweet_cache[link] = stats
-                                log(f"💾 Кеш: {link.split('/')[-1]}")
-                            except Exception as e:
-                                log(f"⚠️ Не удалось сохранить в кеш: {e}")
-                        # 🔧 Задержка 0.1с — баланс скорости и стабильности
-                        await asyncio.sleep(0.1)
-                    else:
-                        api_stats["cached"] += 1
-
-                    if stats:
-                        users[uid]["likes"] += stats.get("likes", 0)
-                        users[uid]["views"] += stats.get("views", 0)
-                        users[uid]["replies"] += stats.get("replies", 0)
-                        users[uid]["total_score"] += (stats.get("likes", 0) * 2) + (stats.get("replies", 0) * 5)
-                        if stats.get("author_handle") and stats["author_handle"] != "unknown":
-                            users[uid]["twitter_handle"] = f"@{stats['author_handle']}"
-
-        # ШАГ 3: Чаты Discord
-        log(">>> ШАГ 3: Подсчет сообщений в чатах...")
+                if stats:
+                    for uid in uids:
+                        if uid in users:
+                            users[uid]["twitter_posts"] += 1
+                            users[uid]["twitter_likes"] += stats["likes"]
+                            users[uid]["twitter_views"] += stats["views"]
+                            users[uid]["twitter_replies"] += stats["replies"]
+                            if stats["twitter_handle"]:
+                                users[uid]["twitter_handle"] = f"@{stats['twitter_handle']}"
+                
+                processed += 1
+                if processed % 10 == 0:
+                    log(f"⏳ Прогресс: {processed}/{len(unique_tweets)}")
+                
+                # Задержка между запросами
+                await asyncio.sleep(0.15)
+        
+        # ШАГ 3: Подсчет сообщений в чатах (7 дней)
+        log(">>> ШАГ 3: Подсчет сообщений...")
         for tid in THREAD_IDS:
-            msgs = await get_discord_messages(session, tid, 7)
+            msgs = await get_discord_messages(session, tid, DAYS_BACK_CHAT, is_content_thread=False)
             for m in msgs:
                 uid = str(m['author']['id'])
-                if uid in users: 
+                if uid in users:
                     users[uid]["discord_messages"] += 1
-
-        # ШАГ 4: XP Бот
+                    users[uid]["channels"].add(tid)
+                else:
+                    # Новый пользователь только в чатах
+                    exist = old_data.get(uid, {})
+                    users[uid] = {
+                        "user_id": uid,
+                        "username": m['author']['username'],
+                        "avatar_url": m['author'].get('avatar'),
+                        "discord_messages": 1,
+                        "twitter_posts": 0,
+                        "twitter_likes": 0,
+                        "twitter_views": 0,
+                        "twitter_replies": 0,
+                        "twitter_handle": "@not_linked",
+                        "discord_joined_at": exist.get("discord_joined_at"),
+                        "discord_roles": exist.get("discord_roles", []),
+                        "total_score": 0,
+                        "channels": {tid}
+                    }
+        
+        # ШАГ 4: XP Бот (7 дней)
         log(">>> ШАГ 4: Синхронизация XP...")
-        xp_msgs = await get_discord_messages(session, XP_BOT_THREAD_ID, 7)
+        xp_msgs = await get_discord_messages(session, XP_BOT_THREAD_ID, DAYS_BACK_XP, is_content_thread=False)
         for xm in xp_msgs:
             if xm.get('mentions'):
                 t_uid = str(xm['mentions'][0]['id'])
                 if t_uid in users:
-                    match = re.search(r'(\d[\d\s,.]*)\s*XP', xm['content'])
+                    match = re.search(r'(\d[\d\s,.KM]*)\s*XP', xm['content'].upper())
                     if match:
-                        val = int(match.group(1).replace(' ', '').replace(',', '').replace('.', ''))
-                        if val > users[t_uid]["total_score"]: 
-                            users[t_uid]["total_score"] = val
-                            log(f"⭐ Обновлён XP для {t_uid}: {val}")
+                        xp_str = match.group(1).replace(' ', '').replace(',', '')
+                        try:
+                            if 'K' in xp_str:
+                                val = int(float(xp_str.replace('K', '')) * 1000)
+                            elif 'M' in xp_str:
+                                val = int(float(xp_str.replace('M', '')) * 1000000)
+                            else:
+                                val = int(xp_str)
+                            
+                            if val > users[t_uid]["total_score"]:
+                                users[t_uid]["total_score"] = val
+                                log(f"⭐ XP для {t_uid}: {val}")
+                        except:
+                            pass
+        
+        # 🔧 Обогащение данными (Роли + Дата) - КАК В СТАРОМ КОДЕ
+        log("🛡️ Обогащение данными (Роли + Дата)...")
+        for i, uid in enumerate(users):
+            joined, roles = get_discord_member_info(uid, DISCORD_TOKEN)
+            if joined:
+                users[uid]["discord_joined_at"] = joined
+            if roles:
+                users[uid]["discord_roles"] = roles
+            
+            if i % 50 == 0:
+                log(f"📋 Обработано {i}/{len(users)} пользователей")
+            
+            time.sleep(0.1)  # Чтобы не словить 429 от Discord API
 
-    # 🔧 Финальная статистика
-    log(f"\n📊 СТАТИСТИКА TWITTER API:")
-    log(f"   ✅ Успешно: {api_stats['success']}")
-    log(f"   📦 Из кеша: {api_stats['cached']}")
-    log(f"   ⚠️ 403 ошибки: {api_stats['403_errors']}")
-    log(f"   ❌ 404 ошибки: {api_stats['404_errors']}")
-    log(f"   🔢 Всего запросов: {api_stats['total']}")
-
-    # СОХРАНЕНИЕ (🔧 ИСПРАВЛЕНО: добавлены discord_roles и discord_joined_at)
+    # СОХРАНЕНИЕ
+    log("\n📊 Подготовка данных...")
     now = datetime.now(timezone.utc).isoformat()
     payload = []
     
     for uid, info in users.items():
-        if info["total_score"] == 0: 
+        # Расчет XP
+        if info["total_score"] == 0:
             info["total_score"] = info["discord_messages"] * 10
-            
+        
+        # prev_ поля для отслеживания дельты
+        old_entry = old_data.get(uid, {})
+        
         payload.append({
-            "user_id": uid, 
-            "username": info["username"], 
+            "user_id": uid,
+            "username": info["username"],
+            "avatar_url": f"https://cdn.discordapp.com/avatars/{uid}/{info['avatar_url']}.png" if info.get('avatar_url') else None,
             "twitter_handle": info["twitter_handle"],
-            "total_score": int(info["total_score"]), 
-            "twitter_likes": int(info.get("likes", 0)),
-            "twitter_views": int(info.get("views", 0)), 
-            "twitter_replies": int(info.get("replies", 0)),
-            "discord_messages": int(info.get("discord_messages", 0)),
-            # ✅ КРИТИЧЕСКИ ВАЖНО: эти поля нужны фронтенду!
-            "discord_roles": info.get("discord_roles", []),
-            "discord_joined_at": info.get("discord_joined_at"),
+            "total_score": int(info["total_score"]),
+            "twitter_likes": int(info["twitter_likes"]),
+            "twitter_views": int(info["twitter_views"]),
+            "twitter_replies": int(info["twitter_replies"]),
+            "discord_messages": int(info["discord_messages"]),
+            "channels_count": len(info["channels"]),
+            "discord_roles": info["discord_roles"],
+            "discord_joined_at": info["discord_joined_at"],
+            "prev_total_score": old_entry.get("total_score", 0),
+            "prev_discord_messages": old_entry.get("discord_messages", 0),
             "updated_at": now
         })
-
+    
     if payload:
         log(f">>> СИНХРОНИЗАЦИЯ: {len(payload)} строк")
         for i in range(0, len(payload), 50):
@@ -261,7 +321,7 @@ async def main():
                 supabase.table("leaderboard_stats").upsert(payload[i:i+50]).execute()
                 log(f"💾 Пачка {i//50 + 1}/{(len(payload)+49)//50} сохранена")
             except Exception as e:
-                log(f"❌ Ошибка пачки {i//50 + 1}: {e}")
+                log(f"❌ Ошибка пачки: {e}")
         log("🎉 ГОТОВО! Лидерборд обновлен.")
     else:
         log("⚠️ Нет данных для сохранения")
