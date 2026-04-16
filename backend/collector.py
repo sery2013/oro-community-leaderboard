@@ -139,7 +139,8 @@ async def get_discord_messages(session, thread_id, days):
                 messages.append(m)
             
             last_id = batch[-1]['id']
-            await asyncio.sleep(0.1)
+            # 🔧 РАНДОМНАЯ ЗАДЕРЖКА 0.4–0.7 сек между запросами к Discord
+            await asyncio.sleep(random.uniform(0.4, 0.7))
     return messages
 
 async def main():
@@ -232,7 +233,7 @@ async def main():
                                 log(f"💾 Сохранено в кеш: {link}")
                             except Exception as e:
                                 log(f"⚠️ Не удалось сохранить в кеш: {e}")
-                        await asyncio.sleep(0.2)  # Немного дольше между запросами
+                        await asyncio.sleep(0.2)  # Задержка между запросами к Twitter API
                     else:
                         api_stats["cached"] += 1
 
