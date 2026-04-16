@@ -101,11 +101,11 @@ export default function Leaderboard() {
         (u.twitter_views > 0)
       );
       console.log('🔍 TWITTER DATA:', data?.slice(0, 2).map(u => ({
-  username: u.username,
-  posts: u.twitter_posts,
-  likes: u.twitter_likes,
-  views: u.twitter_views
-})));
+        username: u.username,
+        posts: u.twitter_posts,
+        likes: u.twitter_likes,
+        views: u.twitter_views
+      })));
       setUsers(validData);
 
       if (data && data.length > 0 && data[0].updated_at) {
@@ -686,19 +686,19 @@ export default function Leaderboard() {
                             <span className="join-date">{formatDate(user.discord_joined_at)}</span>
                           </div>
                           <a
-                            href={user.twitter_handle ? `https://x.com/${user.twitter_handle}` : '#'}
+                            href={user.twitter_handle && user.twitter_handle !== '@not_linked' ? `https://x.com/${user.twitter_handle.replace('@', '')}` : '#'}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className={`meta-badge twitter-link ${!user.twitter_handle ? 'disabled' : ''}`}
+                            className={`meta-badge twitter-link ${!user.twitter_handle || user.twitter_handle === '@not_linked' ? 'disabled' : ''}`}
                             onClick={(e) => {
-                              if (!user.twitter_handle) e.preventDefault();
+                              if (!user.twitter_handle || user.twitter_handle === '@not_linked') e.preventDefault();
                               e.stopPropagation();
                             }}
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
                               <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path>
                             </svg>
-                            <span>@{user.twitter_handle || 'not_linked'}</span>
+                            <span>{user.twitter_handle?.startsWith('@') ? user.twitter_handle : `@${user.twitter_handle || 'not_linked'}`}</span>
                           </a>
                         </div>
                       </div>
