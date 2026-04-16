@@ -118,8 +118,8 @@ async def get_discord_messages(session, thread_id, days, is_content_thread=False
                     continue
                 
                 if resp.status != 200:
-                    log(f"⚠️ Discord API ответ {resp.status}")
-                    break
+                    log(f"⚠️ Discord API ответ {resp.status} для канала {thread_id}")
+                    break  # Выходим из цикла, если канал недоступен
                 
                 batch = await resp.json()
                 if not batch:
@@ -193,7 +193,7 @@ async def main():
         
         # ШАГ 2: Запрос Twitter API (БЕЗ КЕША!)
         if tweet_list and SOCIALDATA_API_KEY:
-            log(">>> ШАГ 2: Запрос Twitter API...")
+            log(">>> ШАГ 2: Запрос Twitter API (Slow Mode)...")
             
             # Убираем дубликаты
             unique_tweets = {}
@@ -217,11 +217,12 @@ async def main():
                                 users[uid]["twitter_handle"] = f"@{stats['twitter_handle']}"
                 
                 processed += 1
-                if processed % 10 == 0:
+                if processed % 5 == 0:  # Логируем чаще, так как медленнее
                     log(f"⏳ Прогресс: {processed}/{len(unique_tweets)}")
                 
-                # Задержка между запросами к Twitter API
-                await asyncio.sleep(0.15)
+                # 🔧 МЕДЛЕННАЯ ЗАДЕРЖКА (1-2 секунды)
+                # Это снизит нагрузку и риск 403 бана IP
+                await asyncio.sleep(random.uniform(1.0, 2.0)) 
         
         # ШАГ 3: Подсчет сообщений в чатах (7 дней)
         log(">>> ШАГ 3: Подсчет сообщений...")
