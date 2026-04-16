@@ -92,7 +92,14 @@ export default function Leaderboard() {
         .select('*')
         .order('total_score', { ascending: false });
       
-      const validData = (data || []).filter(u => (u.discord_messages > 0) || (Number(u.total_score) > 0));
+      // ✅ ИСПРАВЛЕНО: Показываем всех, у кого есть хоть какая-то активность (включая Twitter)
+      const validData = (data || []).filter(u => 
+        (u.discord_messages > 0) || 
+        (Number(u.total_score) > 0) || 
+        (u.twitter_posts > 0) ||
+        (u.twitter_likes > 0) ||
+        (u.twitter_views > 0)
+      );
       setUsers(validData);
 
       if (data && data.length > 0 && data[0].updated_at) {
