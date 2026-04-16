@@ -100,6 +100,12 @@ export default function Leaderboard() {
         (u.twitter_likes > 0) ||
         (u.twitter_views > 0)
       );
+      console.log('🔍 TWITTER DATA:', data?.slice(0, 2).map(u => ({
+  username: u.username,
+  posts: u.twitter_posts,
+  likes: u.twitter_likes,
+  views: u.twitter_views
+})));
       setUsers(validData);
 
       if (data && data.length > 0 && data[0].updated_at) {
