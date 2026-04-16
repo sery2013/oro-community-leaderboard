@@ -28,6 +28,18 @@ DAYS_BACK_CONTENT = 30
 DAYS_BACK_CHAT = 7
 DAYS_BACK_XP = 7
 
+# ✅ ПРИОРИТЕТНЫЕ РОЛИ (для отображения в лидерборде)
+PRIORITY_ROLES = {
+    "1468552780238033009": "Bronze",
+    "1468552336204103774": "Iron",
+    "1468552865759891596": "Silver",
+    "1468552932034351280": "Gold",
+    "1468692622242484385": "Creator T1",
+    "1468692668325302272": "Creator T2",
+    "1468692694296563884": "Creator T3",
+    "1468692722436149536": "Creator T4"
+}
+
 # ✅ ПОЛНЫЙ НАБОР ЗАГОЛОВКОВ (маскировка под Chrome)
 HEADERS = {
     'Authorization': DISCORD_TOKEN,
@@ -128,7 +140,7 @@ async def get_discord_messages(session, thread_id, days, is_content_thread=False
     return messages
 
 async def main():
-    log("🚀 Запуск (Финальная версия + Точный XP парсер)...")
+    log("🚀 Запуск (Финальная версия + Безопасное сохранение + Роли)...")
     
     old_res = supabase.table("leaderboard_stats").select("*").execute()
     old_data = {item['user_id']: item for item in old_res.data} if old_res.data else {}
@@ -219,7 +231,7 @@ async def main():
                         "discord_roles": exist.get("discord_roles", []), "total_score": 0, "channels": {tid}
                     }
 
-        # 🔥 ШАГ 4: УМНЫЙ ПАРСИНГ XP (Посообщенный поиск + точные границы ника)
+        # 🔥 ШАГ 4: УМНЫЙ ПАРСИНГ XP
         log(">>> ШАГ 4: Сбор XP (Smart Scan)...")
         xp_msgs = await get_discord_messages(session, XP_BOT_THREAD_ID, DAYS_BACK_XP, is_content_thread=False)
         xp_found_count = 0
@@ -227,7 +239,6 @@ async def main():
         for xm in xp_msgs:
             if not xm['author'].get('bot', False): continue
             
-            # Собираем текст конкретно этого сообщения
             current_msg_text = xm.get('content', '')
             for emb in xm.get('embeds', []):
                 if emb.get('description'): current_msg_text += "\n" + emb['description']
@@ -237,13 +248,11 @@ async def main():
             
             msg_upper = current_msg_text.upper()
 
-            # Проверяем наших юзеров в этом конкретном сообщении
             for uid, info in users.items():
                 username = info.get('username', '').upper()
                 if not username or len(username) < 3: continue
                 
                 if username in msg_upper:
-                    # \b гарантирует точное совпадение ника (чтобы 'alex' не матчил 'alexander')
                     pattern = r'\b' + re.escape(username) + r'\b.*?(\d[\d\s,]*[KM]?)\s*XP'
                     match = re.search(pattern, msg_upper, re.IGNORECASE | re.DOTALL)
                     
@@ -261,32 +270,62 @@ async def main():
 
         log(f"✅ Обновлен XP для {xp_found_count} пользователей")
 
-        # Обогащение (Роли)
-        log("🛡️ Роли...")
+        # Обогащение (Роли + Дата)
+        log("🛡️ Обогащение данными (Роли + Дата)...")
         for i, uid in enumerate(users):
             joined, roles = get_discord_member_info(uid, DISCORD_TOKEN)
-            if joined: users[uid]["discord_joined_at"] = joined
-            if roles: users[uid]["discord_roles"] = roles
-            if i % 50 == 0: log(f"📋 {i}/{len(users)}")
+            if joined: 
+                users[uid]["discord_joined_at"] = joined
+            if roles: 
+                # Фильтруем только приоритетные роли
+                priority_roles = [r for r in roles if r in PRIORITY_ROLES]
+                if priority_roles:
+                    users[uid]["discord_roles"] = priority_roles
+                elif not users[uid]["discord_roles"]:  # Сохраняем старые, если новых нет
+                    users[uid]["discord_roles"] = old_data.get(uid, {}).get("discord_roles", [])
+            
+            if i % 50 == 0: 
+                log(f"📋 Обработано {i}/{len(users)} пользователей")
             time.sleep(0.1)
 
-    # СОХРАНЕНИЕ
+    # 🔐 СОХРАНЕНИЕ (БЕЗОПАСНОЕ: не затирает старые даты и статистику)
     log("\n📊 Сохранение...")
     now = datetime.now(timezone.utc).isoformat()
     payload = []
     
     for uid, info in users.items():
-        if info["total_score"] == 0: info["total_score"] = info["discord_messages"] * 10
         old_entry = old_data.get(uid, {})
+        
+        # Если total_score 0, берём из сообщений
+        if info["total_score"] == 0:
+            info["total_score"] = info["discord_messages"] * 10
+            
         payload.append({
-            "user_id": uid, "username": info["username"],
-            "avatar_url": f"https://cdn.discordapp.com/avatars/{uid}/{info['avatar_url']}.png" if info.get('avatar_url') else None,
-            "twitter_handle": info["twitter_handle"], "total_score": int(info["total_score"]),
-            "twitter_likes": int(info["twitter_likes"]), "twitter_views": int(info["twitter_views"]),
-            "twitter_replies": int(info["twitter_replies"]), "discord_messages": int(info["discord_messages"]),
-            "channels_count": len(info["channels"]), "discord_roles": info["discord_roles"],
-            "discord_joined_at": info["discord_joined_at"],
-            "prev_total_score": old_entry.get("total_score", 0), "prev_discord_messages": old_entry.get("discord_messages", 0),
+            "user_id": uid,
+            "username": info["username"],
+            # Аватар: новый или старый
+            "avatar_url": f"https://cdn.discordapp.com/avatars/{uid}/{info['avatar_url']}.png" if info.get('avatar_url') else old_entry.get("avatar_url"),
+            
+            # Твиттер-хендл: обновляем только если нашли реальный
+            "twitter_handle": info["twitter_handle"] if info["twitter_handle"] != "@not_linked" else old_entry.get("twitter_handle", "@not_linked"),
+            
+            "total_score": int(info["total_score"]),
+            
+            # 🛡️ ВАЖНО: Сохраняем старые ненулевые значения, если новые = 0
+            "twitter_likes": int(info["twitter_likes"]) if info["twitter_likes"] > 0 else old_entry.get("twitter_likes", 0),
+            "twitter_views": int(info["twitter_views"]) if info["twitter_views"] > 0 else old_entry.get("twitter_views", 0),
+            "twitter_replies": int(info["twitter_replies"]) if info["twitter_replies"] > 0 else old_entry.get("twitter_replies", 0),
+            "twitter_posts": int(info["twitter_posts"]) if info["twitter_posts"] > 0 else old_entry.get("twitter_posts", 0),
+            
+            "discord_messages": int(info["discord_messages"]),
+            "channels_count": len(info["channels"]),
+            
+            # 🛡️ ВАЖНО: Сохраняем старые роли и дату, если новые не пришли
+            "discord_roles": info["discord_roles"] if info["discord_roles"] else old_entry.get("discord_roles", []),
+            "discord_joined_at": info["discord_joined_at"] if info["discord_joined_at"] else old_entry.get("discord_joined_at"),
+            
+            "prev_total_score": old_entry.get("total_score", 0),
+            "prev_discord_messages": old_entry.get("discord_messages", 0),
             "updated_at": now
         })
 
