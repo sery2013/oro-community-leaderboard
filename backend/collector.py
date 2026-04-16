@@ -39,9 +39,9 @@ PRIORITY_ROLES = {
     "1468692722436149536": "Creator T4"
 }
 
-# ✅ ПОЛНЫЙ НАБОР ЗАГОЛОВКОВ (маскировка под Chrome)
+# ✅ ПОЛНЫЙ НАБОР ЗАГОЛОВКОВ + ФИКС: префикс "Bot " для токена
 HEADERS = {
-    'Authorization': DISCORD_TOKEN,
+    'Authorization': f'Bot {DISCORD_TOKEN}',  # ← ИСПРАВЛЕНО: добавлен префикс "Bot "
     'Content-Type': 'application/json',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     'Accept': '*/*',
@@ -66,7 +66,12 @@ def get_discord_member_info(user_id, token):
         if r.status_code == 200:
             data = r.json()
             return data.get('joined_at'), data.get('roles', [])
-    except:
+        else:
+            # ✅ ДОБАВЛЕНО: лог ошибки, если статус не 200
+            log(f"⚠️ Discord API {r.status_code} для пользователя {user_id}")
+    except Exception as e:
+        # ✅ ДОБАВЛЕНО: лог исключения
+        log(f"❌ Ошибка запроса {user_id}: {e}")
         pass
     return None, []
 
@@ -152,7 +157,7 @@ async def get_discord_messages(session, thread_id, days, is_content_thread=False
     return messages
 
 async def main():
-    log("🚀 Запуск (Финальная версия + Исправления Gemini)...")
+    log("🚀 Запуск (Финальная версия + Исправления токена)...")
     
     # === ФИКС 1: Пагинация для загрузки всех пользователей (больше 1000) ===
     old_data = {}
@@ -321,10 +326,12 @@ async def main():
 
         # Обогащение (Роли + Дата)
         log("🛡️ Обогащение данными (Роли + Дата)...")
+        success_count = 0
         for i, uid in enumerate(users):
             joined, roles = get_discord_member_info(uid, DISCORD_TOKEN)
             if joined: 
                 users[uid]["discord_joined_at"] = joined
+                success_count += 1
             if roles:
                 # Фильтруем только приоритетные роли
                 p_roles = [r for r in roles if r in PRIORITY_ROLES]
@@ -335,6 +342,8 @@ async def main():
                 log(f"📋 Обработано {i}/{len(users)} пользователей")
             
             await asyncio.sleep(0.05)
+        
+        log(f"✅ Даты вступления получены для {success_count}/{len(users)} пользователей")
 
     # 🔐 СОХРАНЕНИЕ (БЕЗОПАСНОЕ: не затирает старые данные)
     log("\n📊 Сохранение...")
