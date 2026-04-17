@@ -256,18 +256,24 @@ async def main():
                 elif SOCIALDATA_API_KEY:
                     stats = await fetch_tweet_stats(session, link, SOCIALDATA_API_KEY)
                     if stats:
-                        try:
-                            supabase.table("tweet_cache").upsert({
-                                'tweet_url': link, 
-                                'likes': stats['likes'], 
-                                'views': stats['views'],
-                                'replies': stats['replies'], 
-                                'twitter_handle': stats.get('twitter_handle'),
-                                'updated_at': datetime.now(timezone.utc).isoformat()
-                            }).execute()
-                            tweet_cache[link] = stats
-                        except Exception as e:
-                            log(f"⚠️ Ошибка сохранения в кэш: {e}")
+    try:
+        supabase.table("tweet_cache").upsert({
+            'tweet_url': link, 
+            'twitter_likes': stats.get('likes', 0), 
+            'twitter_views': stats.get('views', 0),
+            'twitter_replies': stats.get('replies', 0), 
+            'twitter_handle': stats.get('twitter_handle'),
+            'updated_at': datetime.now(timezone.utc).isoformat()
+        }).execute()
+        # Сохраняем в локальный кэш с правильными ключами
+        tweet_cache[link] = {
+            'likes': stats.get('likes', 0),
+            'views': stats.get('views', 0),
+            'replies': stats.get('replies', 0),
+            'twitter_handle': stats.get('twitter_handle')
+        }
+    except Exception as e:
+        log(f"⚠️ Ошибка сохранения в кэш: {e}")
                     
                     # Задержка между запросами к API
                     await asyncio.sleep(random.uniform(0.5, 1.0))
