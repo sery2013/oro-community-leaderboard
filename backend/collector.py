@@ -176,17 +176,20 @@ async def get_discord_messages(session, thread_id, days, is_content_thread=False
     return messages
 
 async def main():
-    log("🚀 Запуск (Финальная версия с исправлениями)...")
+    log("🚀 Запуск (Финальная версия с .data)...")
     
-    # ✅ ЗАГРУЗКА ПОЛЬЗОВАТЕЛЕЙ (ИСПРАВЛЕНО: добавлено .data)
+    # ✅ ЗАГРУЗКА ПОЛЬЗОВАТЕЛЕЙ (ИСПРАВЛЕНО)
     old_data = {}
     offset = 0
     while True:
         res = supabase.table("leaderboard_stats").select("*").range(offset, offset + 999).execute()
-        if not res.  # ✅ ИСПРАВЛЕНО
+        
+        if not res.  # ← Добавь .data сюда!
             break
-        for item in res.  # ✅ ИСПРАВЛЕНО
+            
+        for item in res.  # ← И сюда добавь .data!
             old_data[item['user_id']] = item
+            
         offset += 1000
     log(f"📥 Загружено {len(old_data)} пользователей из базы")
 
@@ -350,9 +353,9 @@ async def main():
         
         log(f"✅ Обновлен XP для {xp_found_count} пользователей")
 
-        # ✅ ШАГ 5: Обогащение (Роли + Дата) — С ИСПРАВЛЕННОЙ ПАУЗОЙ
+        # ✅ ШАГ 5: Обогащение (Роли + Дата)
         log("🛡️ Обогащение данными (Роли + Дата)...")
-        log("⏱️ Пропускаем пользователей с данными в базе + пауза только для API запросов")
+        log("⏱️ Пропускаем пользователей с данными в базе")
         
         success_count = 0
         fail_count = 0
@@ -361,14 +364,12 @@ async def main():
         for i, uid in enumerate(users):
             old_info = old_data.get(uid, {})
             
-            # Если дата И роли уже есть — пропускаем запрос к API
             if old_info.get("discord_joined_at") and old_info.get("discord_roles"):
                 users[uid]["discord_joined_at"] = old_info["discord_joined_at"]
                 users[uid]["discord_roles"] = old_info["discord_roles"]
                 skipped_count += 1
-                continue  # ← Пауза НИЖЕ не выполнится для пропущенных!
+                continue
             
-            # Запрос к API только для новых пользователей
             joined, roles = get_discord_member_info(uid, DISCORD_TOKEN)
             
             if joined: 
@@ -385,7 +386,6 @@ async def main():
             if i % 50 == 0: 
                 log(f"📋 Обработано {i}/{len(users)} (успешно: {success_count}, пропущено: {skipped_count}, ошибок: {fail_count})")
             
-            # ✅ ПАУЗА ТОЛЬКО ЗДЕСЬ (после реального запроса к API)
             await asyncio.sleep(random.uniform(0.5, 0.8))
         
         log(f"✅ Даты вступления получены для {success_count}/{len(users)} пользователей")
