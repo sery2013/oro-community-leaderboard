@@ -85,66 +85,68 @@ export default function Leaderboard() {
       document.head.appendChild(fontLink);
     }
 
-    async function fetchData() {
-      if (!supabase) return;
-      
-      // ✅ Запрашиваем до 10000 записей
-      const { data, error } = await supabase
-        .from('leaderboard_stats')
-        .select('user_id,username,avatar_url,discord_joined_at,discord_messages,twitter_posts,twitter_likes,twitter_views,twitter_replies,total_score,channels_count,discord_roles,twitter_handle,prev_total_score,prev_discord_messages,updated_at')
-        .order('total_score', { ascending: false })
-        .range(0, 9999);
-      
-      // ✅ Лог для отладки
-      console.log('🔍 Supabase response:', {
-        count: data?.length,
-        error: error?.message
-      });
-      
-      if (error) {
-        console.error('❌ Ошибка запроса:', error);
+        async function fetchData() {
+      // Проверка наличия переменных окружения
+      if (!supabaseUrl || !supabaseAnonKey) {
+        console.error('❌ Missing Supabase env vars');
+        setLoading(false);
+        return;
       }
       
-      // ✅ ИСПРАВЛЕНО: Показываем ВСЕХ пользователей (убрали фильтр активности)
-      // Теперь сайт отобразит всех 1400+ человек, даже с нулевой статистикой.
-      const allUsers = data || [];
-      
-      console.log('🔍 Отображаем пользователей:', allUsers.length);
-      
-      setUsers(allUsers);
+      // ✅ Прямой REST запрос к Supabase (обходит лимиты JS-клиента)
+      const url = new URL(`${supabaseUrl}/rest/v1/leaderboard_stats`);
+      url.searchParams.set('select', 'user_id,username,avatar_url,discord_joined_at,discord_messages,twitter_posts,twitter_likes,twitter_views,twitter_replies,total_score,channels_count,discord_roles,twitter_handle,prev_total_score,prev_discord_messages,updated_at');
+      url.searchParams.set('order', 'total_score.desc');
+      url.searchParams.set('limit', '10000'); // Явный лимит
 
-      if (allUsers.length > 0 && allUsers[0].updated_at) {
-        const date = new Date(allUsers[0].updated_at);
-        const formatted = date.toLocaleString('en-GB', { 
-          day: '2-digit', 
-          month: 'short', 
-          hour: '2-digit', 
-          minute: '2-digit' 
-        });
-        setLastUpdate(formatted);
-      } else {
-        setLastUpdate('Daily Sync');
-      }
-
-      if (allUsers.length > 0) {
-        const totalContributors = allUsers.length;
-        const totalMessages = allUsers.reduce((sum, u) => sum + (u.discord_messages || 0), 0);
-        const totalXP = allUsers.reduce((sum, u) => sum + (u.total_score || 0), 0);
-        const twitterPosts24h = allUsers.reduce((sum, u) => sum + (u.twitter_posts || 0), 0);
-        const channelsSet = new Set();
-        allUsers.forEach(u => {
-          if (u.channels_count) {
-            for (let i = 0; i < u.channels_count; i++) channelsSet.add(i);
+      try {
+        const res = await fetch(url.toString(), {
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
           }
         });
-        const activeChannels = channelsSet.size;
-        setServerStats({
-          totalContributors,
-          totalMessages,
-          totalXP,
-          activeChannels,
-          twitterPosts24h
-        });
+
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(`HTTP ${res.status}: ${errorText}`);
+        }
+        
+        const data = await res.json();
+        console.log('🔍 Raw API response:', data.length, 'rows');
+
+        // Берем все данные, без фильтрации
+        const allUsers = Array.isArray(data) ? data : [];
+        setUsers(allUsers);
+
+        // Обновляем дату
+        if (allUsers.length > 0 && allUsers[0].updated_at) {
+          const date = new Date(allUsers[0].updated_at);
+          setLastUpdate(date.toLocaleString('en-GB', { 
+            day: '2-digit', 
+            month: 'short', 
+            hour: '2-digit', 
+            minute: '2-digit' 
+          }));
+        } else {
+          setLastUpdate('Daily Sync');
+        }
+
+        // Считаем статистику
+        if (allUsers.length > 0) {
+          setServerStats({
+            totalContributors: allUsers.length,
+            totalMessages: allUsers.reduce((sum, u) => sum + (u.discord_messages || 0), 0),
+            totalXP: allUsers.reduce((sum, u) => sum + (u.total_score || 0), 0),
+            // Упрощенный подсчет каналов (берем просто длину массива или 0)
+            activeChannels: allUsers.reduce((max, u) => Math.max(max, u.channels_count || 0), 0), 
+            twitterPosts24h: allUsers.reduce((sum, u) => sum + (u.twitter_posts || 0), 0)
+          });
+        }
+      } catch (err) {
+        console.error('❌ Fetch error:', err);
       }
       setLoading(false);
     }
