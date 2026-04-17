@@ -87,11 +87,23 @@ export default function Leaderboard() {
 
     async function fetchData() {
       if (!supabase) return;
-      const { data } = await supabase
-  .from('leaderboard_stats')
-  .select('user_id,username,avatar_url,discord_joined_at,discord_messages,twitter_posts,twitter_likes,twitter_views,twitter_replies,total_score,channels_count,discord_roles,twitter_handle,prev_total_score,prev_discord_messages,updated_at')
-  .order('total_score', { ascending: false })
-  .limit(10000);  // ← ДОБАВЛЕНО: запрашиваем до 10000 записей
+      
+      // ✅ ИСПРАВЛЕНО: используем .range() вместо .limit() для надёжности
+      const { data, error } = await supabase
+        .from('leaderboard_stats')
+        .select('user_id,username,avatar_url,discord_joined_at,discord_messages,twitter_posts,twitter_likes,twitter_views,twitter_replies,total_score,channels_count,discord_roles,twitter_handle,prev_total_score,prev_discord_messages,updated_at')
+        .order('total_score', { ascending: false })
+        .range(0, 9999);  // ← Запрашиваем записи с 0 по 9999 (итого 10000)
+      
+      // ✅ Лог для отладки: сколько пришло от базы
+      console.log('🔍 Supabase response:', {
+        count: data?.length,
+        error: error?.message
+      });
+      
+      if (error) {
+        console.error('❌ Ошибка запроса:', error);
+      }
       
       // ✅ ИСПРАВЛЕНО: Показываем всех, у кого есть хоть какая-то активность (включая Twitter)
       const validData = (data || []).filter(u => 
@@ -101,12 +113,9 @@ export default function Leaderboard() {
         (u.twitter_likes > 0) ||
         (u.twitter_views > 0)
       );
-      console.log('🔍 TWITTER DATA:', data?.slice(0, 2).map(u => ({
-        username: u.username,
-        posts: u.twitter_posts,
-        likes: u.twitter_likes,
-        views: u.twitter_views
-      })));
+      
+      console.log('🔍 После фильтра validData:', validData.length);
+      
       setUsers(validData);
 
       if (data && data.length > 0 && data[0].updated_at) {
