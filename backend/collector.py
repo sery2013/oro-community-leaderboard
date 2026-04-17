@@ -39,7 +39,6 @@ PRIORITY_ROLES = {
     "1468692722436149536": "Creator T4"
 }
 
-# ✅ ПОЛНЫЙ НАБОР ЗАГОЛОВКОВ (для сканирования каналов)
 HEADERS = {
     'Authorization': DISCORD_TOKEN,
     'Content-Type': 'application/json',
@@ -59,11 +58,7 @@ HEADERS = {
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def get_discord_member_info(user_id, token):
-    """
-    ✅ ОПТИМИЗИРОВАНО: Минимальные заголовки для избежания 403/пустых полей
-    """
     url = f"https://discord.com/api/v10/guilds/{GUILD_ID}/members/{user_id}"
-    
     headers = {
         'Authorization': token,
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
@@ -102,7 +97,6 @@ def get_discord_member_info(user_id, token):
     return None, []
 
 async def fetch_tweet_stats(session, tweet_url, api_key):
-    """⚡ БЫСТРАЯ ВЕРСИЯ: Мгновенно пропускает 403, ждёт только 429"""
     id_match = re.search(r"status/(\d+)", tweet_url)
     if not id_match or not api_key: 
         return None
@@ -182,21 +176,21 @@ async def get_discord_messages(session, thread_id, days, is_content_thread=False
     return messages
 
 async def main():
-    log("🚀 Запуск (Финальная версия с исправленными колонками)...")
+    log("🚀 Запуск (Финальная версия с исправленными .data)...")
     
-    # === Загрузка пользователей из leaderboard_stats ===
+    # ✅ ЗАГРУЗКА ПОЛЬЗОВАТЕЛЕЙ (исправлено: добавлено .data)
     old_data = {}
     offset = 0
     while True:
         res = supabase.table("leaderboard_stats").select("*").range(offset, offset + 999).execute()
-        if not res. 
+        if not res.data:  # ✅ ИСПРАВЛЕНО
             break
-        for item in res.
+        for item in res.data:  # ✅ ИСПРАВЛЕНО
             old_data[item['user_id']] = item
         offset += 1000
     log(f"📥 Загружено {len(old_data)} пользователей из базы")
 
-    # ✅ ЗАГРУЗКА КЭША (колонки БЕЗ префикса: likes, views, replies)
+    # ✅ ЗАГРУЗКА КЭША (колонки БЕЗ префикса)
     try:
         cache_res = supabase.table("tweet_cache").select("*").execute()
         tweet_cache = {
@@ -237,7 +231,7 @@ async def main():
         
         log(f"✅ Найдено {len(tweet_list)} ссылок")
 
-        # === ШАГ 2: Twitter API + Кэш ===
+        # ШАГ 2: Twitter API + Кэш
         log(">>> ШАГ 2: Twitter API + Кэш...")
         
         unique_user_tweets = {}
@@ -258,14 +252,13 @@ async def main():
                 elif SOCIALDATA_API_KEY:
                     stats = await fetch_tweet_stats(session, link, SOCIALDATA_API_KEY)
                     
-                    # ✅ СОХРАНЕНИЕ В tweet_cache (колонки БЕЗ префикса!)
                     if stats:
                         try:
                             supabase.table("tweet_cache").upsert({
                                 'tweet_url': link, 
-                                'likes': stats.get('likes', 0),      # БЕЗ префикса
-                                'views': stats.get('views', 0),      # БЕЗ префикса
-                                'replies': stats.get('replies', 0),  # БЕЗ префикса
+                                'likes': stats.get('likes', 0),
+                                'views': stats.get('views', 0),
+                                'replies': stats.get('replies', 0),
                                 'twitter_handle': stats.get('twitter_handle'),
                                 'updated_at': datetime.now(timezone.utc).isoformat()
                             }).execute()
@@ -357,7 +350,7 @@ async def main():
         
         log(f"✅ Обновлен XP для {xp_found_count} пользователей")
 
-        # ✅ ШАГ 5: Обогащение (Роли + Дата)
+        # ШАГ 5: Обогащение (Роли + Дата)
         log("🛡️ Обогащение данными (Роли + Дата)...")
         log("⏱️ Используем безопасную задержку 0.5-0.8s")
         
@@ -387,7 +380,7 @@ async def main():
         if fail_count > 0:
             log(f"⚠️ {fail_count} пользователей без дат (Discord API ограничивает доступ)")
 
-    # 🔐 СОХРАНЕНИЕ В leaderboard_stats (колонки С префиксом twitter_)
+    # СОХРАНЕНИЕ В leaderboard_stats
     log("\n📊 Сохранение...")
     now = datetime.now(timezone.utc).isoformat()
     payload = []
@@ -405,7 +398,6 @@ async def main():
             "twitter_handle": info["twitter_handle"] if info["twitter_handle"] != "@not_linked" else old.get("twitter_handle", "@not_linked"),
             "total_score": int(info["total_score"]),
             
-            # ✅ СОХРАНЕНИЕ В leaderboard_stats (колонки С префиксом twitter_)
             "twitter_likes": max(int(info["twitter_likes"]), old.get("twitter_likes", 0)),
             "twitter_views": max(int(info["twitter_views"]), old.get("twitter_views", 0)),
             "twitter_replies": max(int(info["twitter_replies"]), old.get("twitter_replies", 0)),
