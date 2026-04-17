@@ -185,7 +185,7 @@ async def get_discord_messages(session, thread_id, days, is_content_thread=False
     return messages
 
 async def main():
-    log("🚀 Запуск (Оптимизированная версия + Gemini fixes)...")
+    log("🚀 Запуск (Финальная оптимизированная версия)...")
     
     # === ФИКС 1: Пагинация для загрузки всех пользователей (больше 1000) ===
     old_data = {}
@@ -199,9 +199,17 @@ async def main():
         offset += 1000
     log(f"📥 Загружено {len(old_data)} пользователей из базы")
 
+    # ✅ ФИКС 2: Загрузка кэша с правильным маппингом колонок (совет Gemini)
     try:
         cache_res = supabase.table("tweet_cache").select("*").execute()
-        tweet_cache = {item['tweet_url']: item for item in cache_res.data} if cache_res.data else {}
+        tweet_cache = {
+            item['tweet_url']: {
+                'likes': item.get('twitter_likes', 0),
+                'views': item.get('twitter_views', 0),
+                'replies': item.get('twitter_replies', 0),
+                'twitter_handle': item.get('twitter_handle')
+            } for item in cache_res.data
+        } if cache_res.data else {}
         log(f"📦 Кэш твитов: {len(tweet_cache)} записей")
     except Exception as e:
         log(f"⚠️ Ошибка загрузки кэша: {e}")
@@ -232,10 +240,9 @@ async def main():
         
         log(f"✅ Найдено {len(tweet_list)} ссылок")
 
-        # === ФИКС 2: Группировка твитов для избежания дубликатов ===
+        # === ФИКС 3: Группировка и обработка твитов ===
         log(">>> ШАГ 2: Twitter API + Кэш...")
         
-        # Группируем: { user_id: set(links) }
         unique_user_tweets = {}
         for uid, link in tweet_list:
             if uid not in unique_user_tweets:
@@ -244,7 +251,6 @@ async def main():
         
         log(f"🔍 Уникальных пользователей с твитами: {len(unique_user_tweets)}")
         
-        # Обрабатываем только уникальные твиты на пользователя
         total_fetched = 0
         for uid, links in unique_user_tweets.items():
             for link in links:
@@ -338,7 +344,6 @@ async def main():
                     continue
                 
                 if username in msg_upper:
-                    # \b гарантирует точное совпадение ника
                     pattern = r'\b' + re.escape(username) + r'\b.*?(\d[\d\s,]*[KM]?)\s*XP'
                     match = re.search(pattern, msg_upper, re.IGNORECASE | re.DOTALL)
                     
@@ -383,9 +388,9 @@ async def main():
                     users[uid]["discord_roles"] = p_roles
             
             if i % 50 == 0: 
-                log(f"📋 Обработано {i}/{len(users)} пользователей (успешно: {success_count}, ошибок: {fail_count})")
+                log(f"📋 Обработано {i}/{len(users)} (успешно: {success_count}, ошибок: {fail_count})")
             
-            # ✅ УВЕЛИЧЕННАЯ ЗАДЕРЖКА (Gemini fix)
+            # ✅ УВЕЛИЧЕННАЯ ЗАДЕРЖКА (защита от бана)
             await asyncio.sleep(random.uniform(0.5, 0.8))
         
         log(f"✅ Даты вступления получены для {success_count}/{len(users)} пользователей")
@@ -400,33 +405,25 @@ async def main():
     for uid, info in users.items():
         old = old_data.get(uid, {})
         
-        # Если total_score 0, берём из сообщений
         if info["total_score"] == 0:
             info["total_score"] = info["discord_messages"] * 10
         
         payload.append({
             "user_id": uid,
             "username": info["username"],
-            # Аватар: новый или старый
             "avatar_url": f"https://cdn.discordapp.com/avatars/{uid}/{info['avatar_url']}.png" if info.get('avatar_url') else old.get("avatar_url"),
-            
-            # Твиттер-хендл: обновляем только если нашли реальный
             "twitter_handle": info["twitter_handle"] if info["twitter_handle"] != "@not_linked" else old.get("twitter_handle", "@not_linked"),
-            
             "total_score": int(info["total_score"]),
             
-            # 🛡️ ВАЖНО: Сохраняем МАКСИМУМ из нового и старого
             "twitter_likes": max(int(info["twitter_likes"]), old.get("twitter_likes", 0)),
             "twitter_views": max(int(info["twitter_views"]), old.get("twitter_views", 0)),
             "twitter_replies": max(int(info["twitter_replies"]), old.get("twitter_replies", 0)),
             "twitter_posts": max(int(info["twitter_posts"]), old.get("twitter_posts", 0)),
             
             "discord_messages": int(info["discord_messages"]),
-            
-            # ✅ ФИКС 3: Просто берём актуальное число каналов
             "channels_count": len(info["channels"]),
             
-            # 🛡️ Сохраняем старые роли и дату, если новые не пришли
+            # 🛡️ Защита: если новое значение пустое, берём старое из БД
             "discord_roles": info["discord_roles"] if info["discord_roles"] else old.get("discord_roles", []),
             "discord_joined_at": info["discord_joined_at"] if info["discord_joined_at"] else old.get("discord_joined_at"),
             
