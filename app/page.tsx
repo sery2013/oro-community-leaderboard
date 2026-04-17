@@ -90,7 +90,8 @@ export default function Leaderboard() {
       const { data } = await supabase
   .from('leaderboard_stats')
   .select('user_id,username,avatar_url,discord_joined_at,discord_messages,twitter_posts,twitter_likes,twitter_views,twitter_replies,total_score,channels_count,discord_roles,twitter_handle,prev_total_score,prev_discord_messages,updated_at')
-  .order('total_score', { ascending: false });
+  .order('total_score', { ascending: false })
+  .limit(10000);  // ← ДОБАВЛЕНО: запрашиваем до 10000 записей
       
       // ✅ ИСПРАВЛЕНО: Показываем всех, у кого есть хоть какая-то активность (включая Twitter)
       const validData = (data || []).filter(u => 
