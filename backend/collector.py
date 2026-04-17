@@ -39,9 +39,9 @@ PRIORITY_ROLES = {
     "1468692722436149536": "Creator T4"
 }
 
-# ✅ ПОЛНЫЙ НАБОР ЗАГОЛОВКОВ + ФИКС: чистый токен для пользовательского аккаунта
+# ✅ ПОЛНЫЙ НАБОР ЗАГОЛОВКОВ (маскировка под Chrome)
 HEADERS = {
-    'Authorization': DISCORD_TOKEN,  # ← ИСПРАВЛЕНО: убран префикс "Bot " (для личного токена)
+    'Authorization': DISCORD_TOKEN,
     'Content-Type': 'application/json',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     'Accept': '*/*',
@@ -59,20 +59,40 @@ HEADERS = {
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def get_discord_member_info(user_id, token):
+    """Получает дату вступления и роли — с рабочими заголовками и логами"""
     url = f"https://discord.com/api/v10/guilds/{GUILD_ID}/members/{user_id}"
-    headers = HEADERS
+    
+    # ✅ Берём проверенные браузерные заголовки и подставляем личный токен
+    headers = HEADERS.copy()
+    headers['Authorization'] = token
+    
     try:
         r = requests.get(url, headers=headers, timeout=5)
+        
         if r.status_code == 200:
             data = r.json()
-            return data.get('joined_at'), data.get('roles', [])
+            joined = data.get('joined_at')
+            roles = data.get('roles', [])
+            
+            if joined:
+                return joined, roles
+            else:
+                # ⚠️ Discord вернул 200, но без joined_at — это ограничение API для пользовательских токенов
+                log(f"⚠️ {user_id}: 200 OK, но joined_at отсутствует (ограничение API)")
+                return None, roles  # Возвращаем роли, если они есть
+        
+        elif r.status_code == 404:
+            log(f"❓ {user_id}: не найден на сервере (возможно, вышел)")
+        elif r.status_code == 403:
+            log(f"🚫 {user_id}: 403 — токен не имеет прав на чтение участников")
+        elif r.status_code == 401:
+            log(f"🔑 {user_id}: 401 — невалидный токен")
         else:
-            # ✅ ДОБАВЛЕНО: лог ошибки, если статус не 200
-            log(f"⚠️ Discord API {r.status_code} для пользователя {user_id}")
+            log(f"❌ {user_id}: API {r.status_code} — {r.text[:200]}")
+            
     except Exception as e:
-        # ✅ ДОБАВЛЕНО: лог исключения
-        log(f"❌ Ошибка запроса {user_id}: {e}")
-        pass
+        log(f"💥 {user_id}: Ошибка сети — {e}")
+        
     return None, []
 
 async def fetch_tweet_stats(session, tweet_url, api_key):
@@ -157,16 +177,16 @@ async def get_discord_messages(session, thread_id, days, is_content_thread=False
     return messages
 
 async def main():
-    log("🚀 Запуск (Финальная версия + Исправления токена)...")
+    log("🚀 Запуск (Финальная версия + Улучшенный get_discord_member_info)...")
     
     # === ФИКС 1: Пагинация для загрузки всех пользователей (больше 1000) ===
     old_data = {}
     offset = 0
     while True:
         res = supabase.table("leaderboard_stats").select("*").range(offset, offset + 999).execute()
-        if not res. 
+        if not res.data: 
             break
-        for item in res.
+        for item in res.data:
             old_data[item['user_id']] = item
         offset += 1000
     log(f"📥 Загружено {len(old_data)} пользователей из базы")
