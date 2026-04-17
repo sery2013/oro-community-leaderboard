@@ -1,4 +1,8 @@
 'use client';
+// ✅ ИСПРАВЛЕНО: Отключаем кэширование Next.js для всегда свежих данных
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 import { useEffect, useState, useRef, useMemo, type MouseEvent as ReactMouseEvent, type CSSProperties } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -114,7 +118,12 @@ export default function Leaderboard() {
         (u.twitter_views > 0)
       );
       
-      console.log('🔍 После фильтра validData:', validData.length);
+      // ✅ Лог для отладки: сколько осталось после фильтра
+      console.log('🔍 После фильтра:', {
+        total: data?.length,
+        active: validData.length,
+        filtered_out: (data?.length || 0) - validData.length
+      });
       
       setUsers(validData);
 
