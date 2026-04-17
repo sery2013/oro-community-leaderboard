@@ -255,30 +255,32 @@ async def main():
                     stats = tweet_cache[link]
                 elif SOCIALDATA_API_KEY:
                     stats = await fetch_tweet_stats(session, link, SOCIALDATA_API_KEY)
-                    if stats:
-    try:
-        supabase.table("tweet_cache").upsert({
-            'tweet_url': link, 
-            'twitter_likes': stats.get('likes', 0), 
-            'twitter_views': stats.get('views', 0),
-            'twitter_replies': stats.get('replies', 0), 
-            'twitter_handle': stats.get('twitter_handle'),
-            'updated_at': datetime.now(timezone.utc).isoformat()
-        }).execute()
-        # Сохраняем в локальный кэш с правильными ключами
-        tweet_cache[link] = {
-            'likes': stats.get('likes', 0),
-            'views': stats.get('views', 0),
-            'replies': stats.get('replies', 0),
-            'twitter_handle': stats.get('twitter_handle')
-        }
-    except Exception as e:
-        log(f"⚠️ Ошибка сохранения в кэш: {e}")
                     
-                    # Задержка между запросами к API
+                    # ✅ Сохраняем в кэш БД и локально ТОЛЬКО если был запрос к API
+                    if stats:
+                        try:
+                            supabase.table("tweet_cache").upsert({
+                                'tweet_url': link, 
+                                'twitter_likes': stats.get('likes', 0), 
+                                'twitter_views': stats.get('views', 0),
+                                'twitter_replies': stats.get('replies', 0), 
+                                'twitter_handle': stats.get('twitter_handle'),
+                                'updated_at': datetime.now(timezone.utc).isoformat()
+                            }).execute()
+                            # Сохраняем в локальный кэш с правильными ключами
+                            tweet_cache[link] = {
+                                'likes': stats.get('likes', 0),
+                                'views': stats.get('views', 0),
+                                'replies': stats.get('replies', 0),
+                                'twitter_handle': stats.get('twitter_handle')
+                            }
+                        except Exception as e:
+                            log(f"⚠️ Ошибка сохранения в кэш: {e}")
+                    
+                    # Задержка между запросами к API (только если делали запрос!)
                     await asyncio.sleep(random.uniform(0.5, 1.0))
                 
-                # Применяем статистику к пользователю
+                # Применяем статистику к пользователю (если данные есть)
                 if stats and uid in users:
                     users[uid]["twitter_posts"] += 1
                     users[uid]["twitter_likes"] += stats.get("likes", 0)
