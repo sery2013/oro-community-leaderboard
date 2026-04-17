@@ -85,19 +85,17 @@ export default function Leaderboard() {
       document.head.appendChild(fontLink);
     }
 
-        async function fetchData() {
-      // Проверка наличия переменных окружения
+    async function fetchData() {
       if (!supabaseUrl || !supabaseAnonKey) {
         console.error('❌ Missing Supabase env vars');
         setLoading(false);
         return;
       }
       
-      // ✅ Прямой REST запрос к Supabase (обходит лимиты JS-клиента)
       const url = new URL(`${supabaseUrl}/rest/v1/leaderboard_stats`);
       url.searchParams.set('select', 'user_id,username,avatar_url,discord_joined_at,discord_messages,twitter_posts,twitter_likes,twitter_views,twitter_replies,total_score,channels_count,discord_roles,twitter_handle,prev_total_score,prev_discord_messages,updated_at');
       url.searchParams.set('order', 'total_score.desc');
-      url.searchParams.set('limit', '10000'); // Явный лимит
+      url.searchParams.set('limit', '10000');
 
       try {
         const res = await fetch(url.toString(), {
@@ -105,8 +103,11 @@ export default function Leaderboard() {
             'apikey': supabaseAnonKey,
             'Authorization': `Bearer ${supabaseAnonKey}`,
             'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          }
+            'Accept': 'application/json',
+            'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+            'Pragma': 'no-cache'
+          },
+          cache: 'no-store'
         });
 
         if (!res.ok) {
@@ -116,32 +117,34 @@ export default function Leaderboard() {
         
         const data = await res.json();
         console.log('🔍 Raw API response:', data.length, 'rows');
+        console.log('🚀 DEPLOY CHECK: leaderboard-fix-v5-' + Date.now());
+        
+        // Логируем первые 3 пользователя для отладки ролей и дат
+        if (data.length > 0) {
+          console.log(' Sample user data:', data.slice(0, 3).map(u => ({
+            username: u.username,
+            discord_roles: u.discord_roles,
+            discord_joined_at: u.discord_joined_at,
+            roles_count: u.discord_roles?.length || 0
+          })));
+        }
 
-        // Берем все данные, без фильтрации
         const allUsers = Array.isArray(data) ? data : [];
         setUsers(allUsers);
 
-        // Обновляем дату
         if (allUsers.length > 0 && allUsers[0].updated_at) {
           const date = new Date(allUsers[0].updated_at);
-          setLastUpdate(date.toLocaleString('en-GB', { 
-            day: '2-digit', 
-            month: 'short', 
-            hour: '2-digit', 
-            minute: '2-digit' 
-          }));
+          setLastUpdate(date.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }));
         } else {
           setLastUpdate('Daily Sync');
         }
 
-        // Считаем статистику
         if (allUsers.length > 0) {
           setServerStats({
             totalContributors: allUsers.length,
             totalMessages: allUsers.reduce((sum, u) => sum + (u.discord_messages || 0), 0),
             totalXP: allUsers.reduce((sum, u) => sum + (u.total_score || 0), 0),
-            // Упрощенный подсчет каналов (берем просто длину массива или 0)
-            activeChannels: allUsers.reduce((max, u) => Math.max(max, u.channels_count || 0), 0), 
+            activeChannels: allUsers.reduce((max, u) => Math.max(max, u.channels_count || 0), 0),
             twitterPosts24h: allUsers.reduce((sum, u) => sum + (u.twitter_posts || 0), 0)
           });
         }
@@ -243,7 +246,7 @@ export default function Leaderboard() {
                 text-transform: uppercase;
                 white-space: nowrap;
               ">${PRIORITY_ROLES[id]}</span>
-            `).join('') || '<span style="font-size:12px;color:rgba(255,255,255,0.35)">—</span>'}
+            `).join('') || '<span style="font-size:12px;color:rgba(255,255,255,0.35)">No priority roles</span>'}
           </div>
           <div style="color: rgba(255,255,255,0.6); font-size: 14px; white-space: nowrap;">
             Member since ${formatDate(selectedUser.discord_joined_at)}
@@ -488,9 +491,9 @@ export default function Leaderboard() {
   };
 
   const formatDate = (isoString: string) => {
-    if (!isoString) return 'NEW MEMBER';
+    if (!isoString) return 'Member';
     const date = new Date(isoString);
-    if (isNaN(date.getTime())) return 'NEW MEMBER';
+    if (isNaN(date.getTime())) return 'Member';
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
@@ -632,6 +635,8 @@ export default function Leaderboard() {
               const originalRank = users.findIndex(u => u.user_id === user.user_id) + 1;
               const xpChange = calculateChange(user.total_score || 0, user.prev_total_score || 0);
               const msgChange = calculateChange(user.discord_messages || 0, user.prev_discord_messages || 0);
+              const rolesCount = user.discord_roles?.length || 0;
+              
               return (
                 <div
                   key={user.user_id}
@@ -652,9 +657,10 @@ export default function Leaderboard() {
                           alt="avatar"
                         />
                         <div className="avatar-ring"></div>
-                        {user.discord_roles && Array.isArray(user.discord_roles) && user.discord_roles.length > 0 && (
-                          <div className="roles-badge" title={`${user.discord_roles.length} Discord Roles`}>
-                            {user.discord_roles.length}
+                        {/* ✅ ЗНАЧОК РОЛЕЙ НА АВАТАРЕ */}
+                        {rolesCount > 0 && (
+                          <div className="roles-badge" title={`${rolesCount} Discord Roles`}>
+                            {rolesCount}
                           </div>
                         )}
                       </div>
@@ -690,7 +696,7 @@ export default function Leaderboard() {
                               <line x1="8" y1="2" x2="8" y2="6"></line>
                               <line x1="3" y1="10" x2="21" y2="10"></line>
                             </svg>
-                            <span className="join-date">{user.discord_joined_at ? formatDate(user.discord_joined_at) : 'Member'}</span>
+                            <span className="join-date">{formatDate(user.discord_joined_at)}</span>
                           </div>
                           <a
                             href={user.twitter_handle && user.twitter_handle !== '@not_linked' ? `https://x.com/${user.twitter_handle.replace('@', '')}` : '#'}
@@ -724,6 +730,12 @@ export default function Leaderboard() {
                           <span className="stat-dot-small channels"></span>
                           <span className="stat-val">{user.channels_count || 0}</span>
                           <span className="stat-suffix">ACTIVE CHANNELS</span>
+                        </div>
+                        {/* ✅ РОЛИ В КАРТОЧКЕ (в секции DISCORD MESSAGES) */}
+                        <div className="channel-activity-row">
+                          <span className="stat-dot-small" style={{background: '#FFD700', color: '#FFD700'}}></span>
+                          <span className="stat-val">{rolesCount}</span>
+                          <span className="stat-suffix">DISCORD ROLES</span>
                         </div>
                       </div>
                       <div className="metric-box twitter-impact">
