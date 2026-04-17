@@ -39,9 +39,9 @@ PRIORITY_ROLES = {
     "1468692722436149536": "Creator T4"
 }
 
-# ✅ ПОЛНЫЙ НАБОР ЗАГОЛОВКОВ + ФИКС: префикс "Bot " для токена
+# ✅ ПОЛНЫЙ НАБОР ЗАГОЛОВКОВ + ФИКС: чистый токен для пользовательского аккаунта
 HEADERS = {
-    'Authorization': f'Bot {DISCORD_TOKEN}',  # ← ИСПРАВЛЕНО: добавлен префикс "Bot "
+    'Authorization': DISCORD_TOKEN,  # ← ИСПРАВЛЕНО: убран префикс "Bot " (для личного токена)
     'Content-Type': 'application/json',
     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
     'Accept': '*/*',
@@ -164,9 +164,9 @@ async def main():
     offset = 0
     while True:
         res = supabase.table("leaderboard_stats").select("*").range(offset, offset + 999).execute()
-        if not res.data: 
+        if not res. 
             break
-        for item in res.data:
+        for item in res.
             old_data[item['user_id']] = item
         offset += 1000
     log(f"📥 Загружено {len(old_data)} пользователей из базы")
