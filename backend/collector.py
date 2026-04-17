@@ -178,16 +178,17 @@ async def get_discord_messages(session, thread_id, days, is_content_thread=False
 async def main():
     log("🚀 Запуск (Финальная версия с .data)...")
     
-    # ✅ ЗАГРУЗКА ПОЛЬЗОВАТЕЛЕЙ (ИСПРАВЛЕНО)
+    # ✅ ЗАГРУЗКА ПОЛЬЗОВАТЕЛЕЙ (ИСПРАВЛЕНО: добавлено .data)
     old_data = {}
     offset = 0
     while True:
         res = supabase.table("leaderboard_stats").select("*").range(offset, offset + 999).execute()
         
-        if not res.  # ← Добавь .data сюда!
+        # res.data — это список строк из таблицы. Если он пустой, значит мы всё скачали.
+        if not res.data: 
             break
             
-        for item in res.  # ← И сюда добавь .data!
+        for item in res.data: 
             old_data[item['user_id']] = item
             
         offset += 1000
