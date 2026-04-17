@@ -1,7 +1,6 @@
 'use client';
-// ✅ ИСПРАВЛЕНО: Отключаем кэширование Next.js для всегда свежих данных
-export const dynamic = 'force-dynamic';
-export const revalidate = 0;
+// ✅ УБРАНО: export const dynamic/revalidate — несовместимы с 'use client'
+// Клиентские fetch в useEffect не кэшируются Next.js по умолчанию
 
 import { useEffect, useState, useRef, useMemo, type MouseEvent as ReactMouseEvent, type CSSProperties } from 'react';
 import { createClient } from '@supabase/supabase-js';
@@ -92,14 +91,14 @@ export default function Leaderboard() {
     async function fetchData() {
       if (!supabase) return;
       
-      // ✅ ИСПРАВЛЕНО: используем .range() вместо .limit() для надёжности
+      // ✅ Запрашиваем до 10000 записей
       const { data, error } = await supabase
         .from('leaderboard_stats')
         .select('user_id,username,avatar_url,discord_joined_at,discord_messages,twitter_posts,twitter_likes,twitter_views,twitter_replies,total_score,channels_count,discord_roles,twitter_handle,prev_total_score,prev_discord_messages,updated_at')
         .order('total_score', { ascending: false })
-        .range(0, 9999);  // ← Запрашиваем записи с 0 по 9999 (итого 10000)
+        .range(0, 9999);
       
-      // ✅ Лог для отладки: сколько пришло от базы
+      // ✅ Лог для отладки
       console.log('🔍 Supabase response:', {
         count: data?.length,
         error: error?.message
@@ -109,7 +108,7 @@ export default function Leaderboard() {
         console.error('❌ Ошибка запроса:', error);
       }
       
-      // ✅ ИСПРАВЛЕНО: Показываем всех, у кого есть хоть какая-то активность (включая Twitter)
+      // ✅ Фильтр активных пользователей
       const validData = (data || []).filter(u => 
         (u.discord_messages > 0) || 
         (Number(u.total_score) > 0) || 
@@ -118,7 +117,6 @@ export default function Leaderboard() {
         (u.twitter_views > 0)
       );
       
-      // ✅ Лог для отладки: сколько осталось после фильтра
       console.log('🔍 После фильтра:', {
         total: data?.length,
         active: validData.length,
