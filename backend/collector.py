@@ -61,11 +61,9 @@ supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 def get_discord_member_info(user_id, token):
     """
     ✅ ОПТИМИЗИРОВАНО: Минимальные заголовки для избежания 403/пустых полей
-    Discord лучше отвечает на простые запросы с личным токеном
     """
     url = f"https://discord.com/api/v10/guilds/{GUILD_ID}/members/{user_id}"
     
-    # ✅ Только необходимые заголовки (совет Gemini)
     headers = {
         'Authorization': token,
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
@@ -173,7 +171,6 @@ async def get_discord_messages(session, thread_id, days, is_content_thread=False
                 
                 last_id = batch[-1]['id']
                 
-                # Рандомная задержка
                 if is_content_thread: 
                     await asyncio.sleep(random.uniform(0.1, 0.2))
                 else: 
@@ -185,28 +182,28 @@ async def get_discord_messages(session, thread_id, days, is_content_thread=False
     return messages
 
 async def main():
-    log("🚀 Запуск (Финальная оптимизированная версия)...")
+    log("🚀 Запуск (Финальная версия с исправленными колонками)...")
     
-    # === ФИКС 1: Пагинация для загрузки всех пользователей (больше 1000) ===
+    # === Загрузка пользователей из leaderboard_stats ===
     old_data = {}
     offset = 0
     while True:
         res = supabase.table("leaderboard_stats").select("*").range(offset, offset + 999).execute()
-        if not res.data: 
+        if not res. 
             break
-        for item in res.data:
+        for item in res.
             old_data[item['user_id']] = item
         offset += 1000
     log(f"📥 Загружено {len(old_data)} пользователей из базы")
 
-    # ✅ ФИКС 2: Загрузка кэша с правильным маппингом колонок (совет Gemini)
+    # ✅ ЗАГРУЗКА КЭША (колонки БЕЗ префикса: likes, views, replies)
     try:
         cache_res = supabase.table("tweet_cache").select("*").execute()
         tweet_cache = {
             item['tweet_url']: {
-                'likes': item.get('twitter_likes', 0),
-                'views': item.get('twitter_views', 0),
-                'replies': item.get('twitter_replies', 0),
+                'likes': item.get('likes', 0),
+                'views': item.get('views', 0),
+                'replies': item.get('replies', 0),
                 'twitter_handle': item.get('twitter_handle')
             } for item in cache_res.data
         } if cache_res.data else {}
@@ -240,7 +237,7 @@ async def main():
         
         log(f"✅ Найдено {len(tweet_list)} ссылок")
 
-        # === ФИКС 3: Группировка и обработка твитов ===
+        # === ШАГ 2: Twitter API + Кэш ===
         log(">>> ШАГ 2: Twitter API + Кэш...")
         
         unique_user_tweets = {}
@@ -256,24 +253,23 @@ async def main():
             for link in links:
                 stats = None
                 
-                # Проверяем кэш
                 if link in tweet_cache:
                     stats = tweet_cache[link]
                 elif SOCIALDATA_API_KEY:
                     stats = await fetch_tweet_stats(session, link, SOCIALDATA_API_KEY)
                     
-                    # ✅ Сохраняем в кэш БД и локально ТОЛЬКО если был запрос к API
+                    # ✅ СОХРАНЕНИЕ В tweet_cache (колонки БЕЗ префикса!)
                     if stats:
                         try:
                             supabase.table("tweet_cache").upsert({
                                 'tweet_url': link, 
-                                'twitter_likes': stats.get('likes', 0), 
-                                'twitter_views': stats.get('views', 0),
-                                'twitter_replies': stats.get('replies', 0), 
+                                'likes': stats.get('likes', 0),      # БЕЗ префикса
+                                'views': stats.get('views', 0),      # БЕЗ префикса
+                                'replies': stats.get('replies', 0),  # БЕЗ префикса
                                 'twitter_handle': stats.get('twitter_handle'),
                                 'updated_at': datetime.now(timezone.utc).isoformat()
                             }).execute()
-                            # Сохраняем в локальный кэш с правильными ключами
+                            
                             tweet_cache[link] = {
                                 'likes': stats.get('likes', 0),
                                 'views': stats.get('views', 0),
@@ -281,12 +277,10 @@ async def main():
                                 'twitter_handle': stats.get('twitter_handle')
                             }
                         except Exception as e:
-                            log(f"⚠️ Ошибка сохранения в кэш: {e}")
+                            log(f"⚠️ Ошибка сохранения в tweet_cache: {e}")
                     
-                    # Задержка между запросами к API (только если делали запрос!)
                     await asyncio.sleep(random.uniform(0.5, 1.0))
                 
-                # Применяем статистику к пользователю (если данные есть)
                 if stats and uid in users:
                     users[uid]["twitter_posts"] += 1
                     users[uid]["twitter_likes"] += stats.get("likes", 0)
@@ -325,7 +319,6 @@ async def main():
             if not xm['author'].get('bot', False): 
                 continue
             
-            # Собираем весь текст из сообщения и embed'ов
             text = xm.get('content', '')
             for emb in xm.get('embeds', []):
                 if emb.get('description'): 
@@ -337,7 +330,6 @@ async def main():
             
             msg_upper = text.upper()
 
-            # Ищем каждого пользователя в сообщении
             for uid, info in users.items():
                 username = info.get('username', '').upper()
                 if not username or len(username) < 3: 
@@ -365,9 +357,9 @@ async def main():
         
         log(f"✅ Обновлен XP для {xp_found_count} пользователей")
 
-        # ✅ ШАГ 5: Обогащение (Роли + Дата) — ОПТИМИЗИРОВАНО
+        # ✅ ШАГ 5: Обогащение (Роли + Дата)
         log("🛡️ Обогащение данными (Роли + Дата)...")
-        log("⏱️ Используем безопасную задержку 0.5-0.8s для защиты от Rate Limit")
+        log("⏱️ Используем безопасную задержку 0.5-0.8s")
         
         success_count = 0
         fail_count = 0
@@ -382,7 +374,6 @@ async def main():
                 fail_count += 1
                 
             if roles:
-                # Фильтруем только приоритетные роли
                 p_roles = [r for r in roles if r in PRIORITY_ROLES]
                 if p_roles: 
                     users[uid]["discord_roles"] = p_roles
@@ -390,14 +381,13 @@ async def main():
             if i % 50 == 0: 
                 log(f"📋 Обработано {i}/{len(users)} (успешно: {success_count}, ошибок: {fail_count})")
             
-            # ✅ УВЕЛИЧЕННАЯ ЗАДЕРЖКА (защита от бана)
             await asyncio.sleep(random.uniform(0.5, 0.8))
         
         log(f"✅ Даты вступления получены для {success_count}/{len(users)} пользователей")
         if fail_count > 0:
             log(f"⚠️ {fail_count} пользователей без дат (Discord API ограничивает доступ)")
 
-    # 🔐 СОХРАНЕНИЕ (БЕЗОПАСНОЕ: не затирает старые данные)
+    # 🔐 СОХРАНЕНИЕ В leaderboard_stats (колонки С префиксом twitter_)
     log("\n📊 Сохранение...")
     now = datetime.now(timezone.utc).isoformat()
     payload = []
@@ -415,6 +405,7 @@ async def main():
             "twitter_handle": info["twitter_handle"] if info["twitter_handle"] != "@not_linked" else old.get("twitter_handle", "@not_linked"),
             "total_score": int(info["total_score"]),
             
+            # ✅ СОХРАНЕНИЕ В leaderboard_stats (колонки С префиксом twitter_)
             "twitter_likes": max(int(info["twitter_likes"]), old.get("twitter_likes", 0)),
             "twitter_views": max(int(info["twitter_views"]), old.get("twitter_views", 0)),
             "twitter_replies": max(int(info["twitter_replies"]), old.get("twitter_replies", 0)),
@@ -423,7 +414,6 @@ async def main():
             "discord_messages": int(info["discord_messages"]),
             "channels_count": len(info["channels"]),
             
-            # 🛡️ Защита: если новое значение пустое, берём старое из БД
             "discord_roles": info["discord_roles"] if info["discord_roles"] else old.get("discord_roles", []),
             "discord_joined_at": info["discord_joined_at"] if info["discord_joined_at"] else old.get("discord_joined_at"),
             
