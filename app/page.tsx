@@ -1,7 +1,4 @@
 'use client';
-// ✅ УБРАНО: export const dynamic/revalidate — несовместимы с 'use client'
-// Клиентские fetch в useEffect не кэшируются Next.js по умолчанию
-
 import { useEffect, useState, useRef, useMemo, type MouseEvent as ReactMouseEvent, type CSSProperties } from 'react';
 import { createClient } from '@supabase/supabase-js';
 
@@ -108,25 +105,16 @@ export default function Leaderboard() {
         console.error('❌ Ошибка запроса:', error);
       }
       
-      // ✅ Фильтр активных пользователей
-      const validData = (data || []).filter(u => 
-        (u.discord_messages > 0) || 
-        (Number(u.total_score) > 0) || 
-        (u.twitter_posts > 0) ||
-        (u.twitter_likes > 0) ||
-        (u.twitter_views > 0)
-      );
+      // ✅ ИСПРАВЛЕНО: Показываем ВСЕХ пользователей (убрали фильтр активности)
+      // Теперь сайт отобразит всех 1400+ человек, даже с нулевой статистикой.
+      const allUsers = data || [];
       
-      console.log('🔍 После фильтра:', {
-        total: data?.length,
-        active: validData.length,
-        filtered_out: (data?.length || 0) - validData.length
-      });
+      console.log('🔍 Отображаем пользователей:', allUsers.length);
       
-      setUsers(validData);
+      setUsers(allUsers);
 
-      if (data && data.length > 0 && data[0].updated_at) {
-        const date = new Date(data[0].updated_at);
+      if (allUsers.length > 0 && allUsers[0].updated_at) {
+        const date = new Date(allUsers[0].updated_at);
         const formatted = date.toLocaleString('en-GB', { 
           day: '2-digit', 
           month: 'short', 
@@ -138,13 +126,13 @@ export default function Leaderboard() {
         setLastUpdate('Daily Sync');
       }
 
-      if (validData.length > 0) {
-        const totalContributors = validData.length;
-        const totalMessages = validData.reduce((sum, u) => sum + (u.discord_messages || 0), 0);
-        const totalXP = validData.reduce((sum, u) => sum + (u.total_score || 0), 0);
-        const twitterPosts24h = validData.reduce((sum, u) => sum + (u.twitter_posts || 0), 0);
+      if (allUsers.length > 0) {
+        const totalContributors = allUsers.length;
+        const totalMessages = allUsers.reduce((sum, u) => sum + (u.discord_messages || 0), 0);
+        const totalXP = allUsers.reduce((sum, u) => sum + (u.total_score || 0), 0);
+        const twitterPosts24h = allUsers.reduce((sum, u) => sum + (u.twitter_posts || 0), 0);
         const channelsSet = new Set();
-        validData.forEach(u => {
+        allUsers.forEach(u => {
           if (u.channels_count) {
             for (let i = 0; i < u.channels_count; i++) channelsSet.add(i);
           }
