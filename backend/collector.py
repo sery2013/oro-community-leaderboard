@@ -39,7 +39,7 @@ PRIORITY_ROLES = {
     "1468692722436149536": "Creator T4"
 }
 
-# ✅ ПОЛНЫЙ НАБОР ЗАГОЛОВКОВ (маскировка под Chrome)
+# ✅ ПОЛНЫЙ НАБОР ЗАГОЛОВКОВ (для сканирования каналов)
 HEADERS = {
     'Authorization': DISCORD_TOKEN,
     'Content-Type': 'application/json',
@@ -59,15 +59,20 @@ HEADERS = {
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 def get_discord_member_info(user_id, token):
-    """Получает дату вступления и роли — с рабочими заголовками и логами"""
+    """
+    ✅ ОПТИМИЗИРОВАНО: Минимальные заголовки для избежания 403/пустых полей
+    Discord лучше отвечает на простые запросы с личным токеном
+    """
     url = f"https://discord.com/api/v10/guilds/{GUILD_ID}/members/{user_id}"
     
-    # ✅ Берём проверенные браузерные заголовки и подставляем личный токен
-    headers = HEADERS.copy()
-    headers['Authorization'] = token
+    # ✅ Только необходимые заголовки (совет Gemini)
+    headers = {
+        'Authorization': token,
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+    }
     
     try:
-        r = requests.get(url, headers=headers, timeout=5)
+        r = requests.get(url, headers=headers, timeout=10)
         
         if r.status_code == 200:
             data = r.json()
@@ -77,18 +82,21 @@ def get_discord_member_info(user_id, token):
             if joined:
                 return joined, roles
             else:
-                # ⚠️ Discord вернул 200, но без joined_at — это ограничение API для пользовательских токенов
-                log(f"⚠️ {user_id}: 200 OK, но joined_at отсутствует (ограничение API)")
-                return None, roles  # Возвращаем роли, если они есть
+                log(f"⚠️ {user_id}: 200 OK, но joined_at отсутствует")
+                return None, roles
         
         elif r.status_code == 404:
-            log(f"❓ {user_id}: не найден на сервере (возможно, вышел)")
+            log(f"❓ {user_id}: не найден на сервере")
         elif r.status_code == 403:
-            log(f"🚫 {user_id}: 403 — токен не имеет прав на чтение участников")
+            log(f"🚫 {user_id}: 403 — нет прав")
         elif r.status_code == 401:
             log(f"🔑 {user_id}: 401 — невалидный токен")
+        elif r.status_code == 429:
+            retry_after = r.json().get('retry_after', 5)
+            log(f"⏳ {user_id}: Rate limit, жду {retry_after:.1f}s")
+            time.sleep(float(retry_after) + 0.5)
         else:
-            log(f"❌ {user_id}: API {r.status_code} — {r.text[:200]}")
+            log(f"❌ {user_id}: API {r.status_code}")
             
     except Exception as e:
         log(f"💥 {user_id}: Ошибка сети — {e}")
@@ -177,7 +185,7 @@ async def get_discord_messages(session, thread_id, days, is_content_thread=False
     return messages
 
 async def main():
-    log("🚀 Запуск (Финальная версия + Улучшенный get_discord_member_info)...")
+    log("🚀 Запуск (Оптимизированная версия + Gemini fixes)...")
     
     # === ФИКС 1: Пагинация для загрузки всех пользователей (больше 1000) ===
     old_data = {}
@@ -344,14 +352,22 @@ async def main():
         
         log(f"✅ Обновлен XP для {xp_found_count} пользователей")
 
-        # Обогащение (Роли + Дата)
+        # ✅ ШАГ 5: Обогащение (Роли + Дата) — ОПТИМИЗИРОВАНО
         log("🛡️ Обогащение данными (Роли + Дата)...")
+        log("⏱️ Используем безопасную задержку 0.5-0.8s для защиты от Rate Limit")
+        
         success_count = 0
+        fail_count = 0
+        
         for i, uid in enumerate(users):
             joined, roles = get_discord_member_info(uid, DISCORD_TOKEN)
+            
             if joined: 
                 users[uid]["discord_joined_at"] = joined
                 success_count += 1
+            else:
+                fail_count += 1
+                
             if roles:
                 # Фильтруем только приоритетные роли
                 p_roles = [r for r in roles if r in PRIORITY_ROLES]
@@ -359,11 +375,14 @@ async def main():
                     users[uid]["discord_roles"] = p_roles
             
             if i % 50 == 0: 
-                log(f"📋 Обработано {i}/{len(users)} пользователей")
+                log(f"📋 Обработано {i}/{len(users)} пользователей (успешно: {success_count}, ошибок: {fail_count})")
             
-            await asyncio.sleep(0.05)
+            # ✅ УВЕЛИЧЕННАЯ ЗАДЕРЖКА (Gemini fix)
+            await asyncio.sleep(random.uniform(0.5, 0.8))
         
         log(f"✅ Даты вступления получены для {success_count}/{len(users)} пользователей")
+        if fail_count > 0:
+            log(f"⚠️ {fail_count} пользователей без дат (Discord API ограничивает доступ)")
 
     # 🔐 СОХРАНЕНИЕ (БЕЗОПАСНОЕ: не затирает старые данные)
     log("\n📊 Сохранение...")
